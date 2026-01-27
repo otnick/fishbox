@@ -27,6 +27,7 @@ export default function Comments({ catchId }: CommentsProps) {
 
   useEffect(() => {
     fetchComments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catchId])
 
   const fetchComments = async () => {

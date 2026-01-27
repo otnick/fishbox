@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { useCatchStore } from '@/lib/store'
 import { format } from 'date-fns'
@@ -115,7 +116,7 @@ export default function SocialPage() {
             <h3 className="text-white font-semibold mb-2">Teile deine Fänge!</h3>
             <p className="text-ocean-light text-sm">
               Mache deine Fänge öffentlich, um in der Community sichtbar zu werden.
-              In deinen Fängen kannst du einzelne Fänge auf "Öffentlich" stellen.
+              In deinen Fängen kannst du einzelne Fänge auf &quot;Öffentlich&quot; stellen.
             </p>
           </div>
         </div>
@@ -145,11 +146,14 @@ export default function SocialPage() {
             >
               {/* Photo */}
               {activity.photo && (
-                <img
-                  src={activity.photo}
-                  alt={activity.species}
-                  className="w-full h-64 object-cover"
-                />
+                <div className="relative w-full h-64">
+                  <Image
+                    src={activity.photo}
+                    alt={activity.species}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
               )}
 
               {/* Content */}

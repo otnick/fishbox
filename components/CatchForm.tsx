@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useCatchStore } from '@/lib/store'
 import { uploadPhoto, compressImage } from '@/lib/utils/photoUpload'
 import { getCurrentPosition, getLocationName, formatCoordinates } from '@/lib/utils/geolocation'
@@ -194,11 +195,12 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
               </label>
             </div>
           ) : (
-            <div className="relative">
-              <img
+            <div className="relative w-full h-64">
+              <Image
                 src={photoPreview}
                 alt="Preview"
-                className="w-full h-64 object-cover rounded-lg"
+                fill
+                className="object-cover rounded-lg"
               />
               <button
                 type="button"

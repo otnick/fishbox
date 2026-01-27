@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -30,6 +31,7 @@ export default function SharePage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     fetchCatch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id])
 
   const fetchCatch = async () => {
@@ -122,11 +124,14 @@ export default function SharePage({ params }: { params: { id: string } }) {
         <div className="bg-ocean/30 backdrop-blur-sm rounded-xl overflow-hidden mb-6">
           {/* Photo */}
           {catchData.photo_url && (
-            <img
-              src={catchData.photo_url}
-              alt={catchData.species}
-              className="w-full h-96 object-cover"
-            />
+            <div className="relative w-full h-96">
+              <Image
+                src={catchData.photo_url}
+                alt={catchData.species}
+                fill
+                className="object-cover"
+              />
+            </div>
           )}
 
           {/* Content */}

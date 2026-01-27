@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, lazy, Suspense } from 'react'
+import Image from 'next/image'
 import { useCatchStore, type Catch } from '@/lib/store'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
@@ -57,10 +58,11 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
               {/* Photo */}
               {catchData.photo && (
                 <div className="relative h-48 bg-ocean-dark">
-                  <img
+                  <Image
                     src={catchData.photo}
                     alt={catchData.species}
-                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    fill
+                    className="object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => setLightboxPhoto(catchData.photo!)}
                   />
                   <div className="absolute top-2 right-2 bg-ocean-dark/80 px-2 py-1 rounded text-xs text-white">
@@ -273,11 +275,12 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
           className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
           onClick={() => setLightboxPhoto(null)}
         >
-          <div className="relative max-w-4xl max-h-full">
-            <img
+          <div className="relative w-full max-w-4xl h-[90vh]">
+            <Image
               src={lightboxPhoto}
               alt="Vergrößertes Foto"
-              className="max-w-full max-h-[90vh] object-contain"
+              fill
+              className="object-contain"
             />
             <button
               onClick={() => setLightboxPhoto(null)}
