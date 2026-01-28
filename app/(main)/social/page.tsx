@@ -34,6 +34,7 @@ export default function SocialPage() {
     if (user) {
       fetchActivities()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const fetchActivities = async () => {

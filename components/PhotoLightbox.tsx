@@ -35,6 +35,7 @@ export default function PhotoLightbox({ photos, initialIndex, onClose }: PhotoLi
       window.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = 'unset'
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex])
 
   const handlePrev = () => {

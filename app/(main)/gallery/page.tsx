@@ -31,10 +31,12 @@ export default function GalleryPage() {
 
   useEffect(() => {
     loadPhotos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catches])
 
   useEffect(() => {
     applyFilters()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photos, filterSpecies, sortBy])
 
   const loadPhotos = () => {

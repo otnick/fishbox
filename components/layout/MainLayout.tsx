@@ -2,18 +2,15 @@
 
 import { ReactNode } from 'react'
 import Navigation from './Navigation'
-import { useCatchStore } from '@/lib/store'
 
 interface MainLayoutProps {
   children: ReactNode
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
-  const user = useCatchStore((state) => state.user)
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-ocean-deeper to-ocean-dark">
-      <Navigation userEmail={user?.email} />
+      <Navigation />
       
       {/* Main Content */}
       <main className="lg:pl-64 pb-20 lg:pb-4">

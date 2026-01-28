@@ -30,6 +30,7 @@ export default function ProfilePage() {
   useEffect(() => {
     setNotificationsEnabled(getNotificationPreference())
     fetchProfile()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchProfile = async () => {
