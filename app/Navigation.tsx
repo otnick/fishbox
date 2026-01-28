@@ -8,7 +8,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
   { name: 'Fänge', href: '/catches', icon: '🎣' },
   { name: 'Karte', href: '/map', icon: '🗺️' },
-  { name: 'Statistiken', href: '/stats', icon: '📊' },
+  { name: 'Statistiken', href: '/stats', icon: '📊' },                                        
   { name: 'Profil', href: '/profile', icon: '👤' },
 ]
 

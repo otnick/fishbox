@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { 
+  Fish, 
+} from 'lucide-react'
 
 interface AuthProps {
   onSuccess: () => void
@@ -99,7 +102,7 @@ export default function Auth({ onSuccess }: AuthProps) {
       <div className="bg-ocean/30 backdrop-blur-sm rounded-2xl p-8 max-w-md w-full shadow-2xl">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl mb-2">🎣</h1>
+            <Fish className="w-12 h-12 mx-auto mb-2 text-ocean-light" />
           <h2 className="text-3xl font-bold text-white mb-2">FishBox</h2>
           <p className="text-ocean-light">
             {isLogin ? 'Willkommen zurück!' : 'Erstelle deinen Account'}

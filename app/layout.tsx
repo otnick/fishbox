@@ -6,7 +6,7 @@ import AuthProvider from '@/components/auth/AuthProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'FishBox - Dein Angel-Tracker',
+  title: 'FishBox',
   description: 'Tracke deine Angelfänge mit 3D-Visualisierung',
   manifest: '/manifest.json',
   appleWebApp: {
