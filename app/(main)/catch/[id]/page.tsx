@@ -139,6 +139,27 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
     }
   }
 
+  const togglePublic = async () => {
+    if (!user || !catchData || catchData.user_id !== user.id) return
+
+    try {
+      const { error } = await supabase
+        .from('catches')
+        .update({ is_public: !catchData.is_public })
+        .eq('id', params.id)
+
+      if (error) throw error
+
+      setCatchData({
+        ...catchData,
+        is_public: !catchData.is_public,
+      })
+    } catch (error) {
+      console.error('Error toggling public:', error)
+      alert('Fehler beim Aktualisieren der Sichtbarkeit')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -290,6 +311,34 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
               <div className="mb-4">
                 <div className="text-ocean-light text-sm mb-1">Notizen</div>
                 <div className="text-white text-sm">{catchData.notes}</div>
+              </div>
+            )}
+
+            {/* Public Toggle - Only for own catches */}
+            {catchData.user_id === user?.id && (
+              <div className="mb-4 pb-4 border-b border-ocean-light/20">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <div className="text-white font-semibold mb-1">
+                      Öffentlich teilen
+                    </div>
+                    <div className="text-ocean-light text-xs">
+                      {catchData.is_public
+                        ? 'Dieser Fang ist öffentlich sichtbar'
+                        : 'Nur du kannst diesen Fang sehen'}
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={catchData.is_public}
+                      onChange={togglePublic}
+                      className="sr-only peer"
+                    />
+                    <div className="w-14 h-8 bg-ocean-dark rounded-full peer peer-checked:bg-green-500 transition-colors"></div>
+                    <div className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full transition-transform peer-checked:translate-x-6"></div>
+                  </div>
+                </label>
               </div>
             )}
 

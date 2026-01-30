@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCatchStore, type Catch } from '@/lib/store'
+import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Eye, Trash2, MapPin, Calendar, Ruler } from 'lucide-react'
@@ -66,6 +67,31 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
+                    
+                    {/* Verification Status Badge - Icon only with tooltip */}
+                    {catchItem.verification_status === 'verified' && (
+                      <div className="absolute top-2 left-2 bg-green-500/90 backdrop-blur-sm text-white p-2 rounded-full group cursor-help shadow-lg">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {/* Tooltip */}
+                        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          ✅ KI-verifiziert
+                        </div>
+                      </div>
+                    )}
+                    {catchItem.verification_status === 'manual' && (
+                      <div className="absolute top-2 left-2 bg-yellow-500/90 backdrop-blur-sm text-white p-2 rounded-full group cursor-help shadow-lg">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        {/* Tooltip */}
+                        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          ✋ Manuell
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                       <Eye className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -133,6 +159,39 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
                     <span className="hidden sm:inline">Details</span>
                   </button>
                 </Link>
+
+                {/* Public Toggle Button */}
+                <button
+                  onClick={() => {
+                    const newPublicState = !catchItem.is_public
+                    supabase
+                      .from('catches')
+                      .update({ is_public: newPublicState })
+                      .eq('id', catchItem.id)
+                      .then(() => {
+                        // Refresh catches
+                        window.location.reload()
+                      })
+                  }}
+                  className={`px-3 py-2 rounded-lg transition-colors group relative ${
+                    catchItem.is_public
+                      ? 'bg-green-900/30 hover:bg-green-900/50 text-green-400'
+                      : 'bg-ocean-dark hover:bg-ocean text-ocean-light'
+                  }`}
+                  aria-label={catchItem.is_public ? 'Öffentlich' : 'Privat'}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    {catchItem.is_public ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    )}
+                  </svg>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    {catchItem.is_public ? 'Öffentlich' : 'Privat'}
+                  </div>
+                </button>
 
                 {catchItem.coordinates && (
                   <button

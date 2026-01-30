@@ -1,12 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useCatchStore } from '@/lib/store'
+import { supabase } from '@/lib/supabase'
 import { uploadPhoto, compressImage } from '@/lib/utils/photoUpload'
 import { getCurrentPosition, getLocationName, formatCoordinates } from '@/lib/utils/geolocation'
 import { getCurrentWeather } from '@/lib/utils/weather'
+import { detectFishSpecies, mapSpeciesToDatabase, type FishDetectionResult } from '@/lib/utils/fishDetection'
+import ScanAnimation from '@/components/ScanAnimation'
+import AIVerificationModal from '@/components/AIVerificationModal'
+import NoDetectionModal from '@/components/NoDetectionModal'
 import type { Coordinates } from '@/lib/utils/geolocation'
+import type { FishSpecies, Achievement } from '@/lib/types/fishdex'
 
 interface CatchFormProps {
   onSuccess: () => void
@@ -39,6 +45,7 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
     bait: '',
     notes: '',
     date: new Date().toISOString().slice(0, 16),
+    isPublic: false, // Default to private
   })
 
   const [photo, setPhoto] = useState<File | null>(null)
@@ -48,8 +55,28 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
   const [uploading, setUploading] = useState(false)
   const [weather, setWeather] = useState<any>(null)
   const [fetchingWeather, setFetchingWeather] = useState(false)
+  const [newDiscovery, setNewDiscovery] = useState<{
+    species: FishSpecies
+    achievements: Achievement[]
+  } | null>(null)
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // AI Verification states
+  const [showAIVerification, setShowAIVerification] = useState(false)
+  const [showNoDetection, setShowNoDetection] = useState(false)
+  const [aiDetectionResults, setAIDetectionResults] = useState<FishDetectionResult[]>([])
+  const [aiDetectionLoading, setAIDetectionLoading] = useState(false)
+  const [manualMode, setManualMode] = useState(false)
+  const [aiVerified, setAIVerified] = useState(false)
+
+  // Debug: Watch newDiscovery changes
+  useEffect(() => {
+    console.log('newDiscovery state changed:', newDiscovery)
+    if (newDiscovery) {
+      console.log('ScanAnimation should render NOW!')
+    }
+  }, [newDiscovery])
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setPhoto(file)
@@ -58,6 +85,28 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
         setPhotoPreview(reader.result as string)
       }
       reader.readAsDataURL(file)
+
+      // Run AI detection
+      console.log('🤖 Starting AI detection...')
+      setAIDetectionLoading(true)
+      try {
+        const results = await detectFishSpecies(file)
+        console.log('AI Results:', results)
+        
+        if (results.detections > 0 && results.results.length > 0) {
+          setAIDetectionResults(results.results)
+          setShowAIVerification(true)
+          console.log('✅ Fish detected! Showing verification modal')
+        } else {
+          console.log('❌ No fish detected - showing NoDetectionModal')
+          setShowNoDetection(true)
+        }
+      } catch (error) {
+        console.error('AI detection failed:', error)
+        setShowNoDetection(true)
+      } finally {
+        setAIDetectionLoading(false)
+      }
     }
   }
 
@@ -126,6 +175,36 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
         }
       }
 
+      // Determine verification status
+      let verificationData: any = {}
+      
+      if (aiVerified && aiDetectionResults.length > 0) {
+        // AI verified catch
+        const topResult = aiDetectionResults[0]
+        verificationData = {
+          ai_verified: true,
+          ai_species: topResult.species,
+          ai_confidence: topResult.accuracy,
+          verified_at: new Date().toISOString(),
+          verification_status: 'verified'
+        }
+        console.log('✅ Saving as AI verified catch')
+      } else if (manualMode) {
+        // Manual mode
+        verificationData = {
+          ai_verified: false,
+          verification_status: 'manual'
+        }
+        console.log('📝 Saving as manual catch')
+      } else {
+        // Rejected or unverified
+        verificationData = {
+          ai_verified: false,
+          verification_status: 'pending'
+        }
+        console.log('⏳ Saving as pending catch')
+      }
+
       const catchData = {
         species: formData.species,
         length: parseInt(formData.length),
@@ -137,9 +216,16 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
         photo: photoUrl,
         coordinates: coordinates || undefined,
         weather: weather || undefined,
+        is_public: formData.isPublic, // Add public status
+        ...verificationData
       }
 
       await addCatch(catchData)
+
+      // Check if this was a new discovery (ONLY for AI-verified catches)
+      if (verificationData.ai_verified && verificationData.verification_status === 'verified') {
+        await checkForNewDiscovery(catchData.species)
+      }
 
       setFormData({
         species: '',
@@ -149,13 +235,20 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
         bait: '',
         notes: '',
         date: new Date().toISOString().slice(0, 16),
+        isPublic: false, // Reset to private
       })
       setPhoto(null)
       setPhotoPreview(null)
       setCoordinates(null)
       setWeather(null)
+      setManualMode(false)
+      setAIVerified(false)
+      setAIDetectionResults([])
 
-      onSuccess()
+      // Only call onSuccess if no new discovery (to prevent navigation)
+      if (!newDiscovery) {
+        onSuccess()
+      }
     } catch (error) {
       console.error('Submit error:', error)
       alert('Fehler beim Speichern')
@@ -164,8 +257,191 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
     }
   }
 
+  const checkForNewDiscovery = async (speciesName: string) => {
+    if (!user) return
+
+    try {
+      // Check if species exists in catalog
+      const { data: species, error: speciesError } = await supabase
+        .from('fish_species')
+        .select('*')
+        .ilike('name', speciesName)
+        .single()
+
+      if (speciesError || !species) {
+        console.log('Species not found in catalog:', speciesName)
+        return
+      }
+
+      console.log('Found species in catalog:', species.name)
+
+      // Wait for trigger to complete (increased wait time)
+      await new Promise(resolve => setTimeout(resolve, 1500))
+
+      // Check if user_fishdex entry was created (by trigger)
+      const { data: userEntry, error: entryError } = await supabase
+        .from('user_fishdex')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('species_id', species.id)
+        .single()
+
+      if (entryError) {
+        console.log('Error checking user_fishdex:', entryError)
+        return
+      }
+
+      // Check if this was just created (within last 10 seconds)
+      const createdAt = new Date(userEntry.created_at).getTime()
+      const now = Date.now()
+      const isNew = (now - createdAt) < 10000
+
+      console.log('User entry:', {
+        created: userEntry.created_at,
+        isNew,
+        timeDiff: now - createdAt
+      })
+
+      if (isNew) {
+        console.log('NEW DISCOVERY! Showing scan animation')
+
+        // Load newly unlocked achievements
+        const { data: achievements } = await supabase
+          .from('user_achievements')
+          .select('*, achievement:achievements(*)')
+          .eq('user_id', user.id)
+          .gte('unlocked_at', new Date(Date.now() - 10000).toISOString())
+
+        console.log('Found achievements:', achievements?.length || 0)
+
+        // IMPORTANT: Set state AFTER all data is loaded
+        const discoveryData = {
+          species,
+          achievements: achievements?.map(a => a.achievement).filter(Boolean) || []
+        }
+        
+        console.log('Setting newDiscovery state:', discoveryData)
+        setNewDiscovery(discoveryData)
+        
+        // Force a small delay to ensure state propagates
+        await new Promise(resolve => setTimeout(resolve, 100))
+        console.log('State should be set now!')
+      } else {
+        console.log('Already discovered, no animation')
+      }
+    } catch (error) {
+      console.error('Error checking discovery:', error)
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      {/* AI Verification Modal */}
+      {showAIVerification && photoPreview && (
+        <AIVerificationModal
+          photoPreview={photoPreview}
+          detectionResults={aiDetectionResults}
+          detectionLoading={aiDetectionLoading}
+          onConfirm={(species) => {
+            console.log('✅ User confirmed:', species)
+            const mappedSpecies = mapSpeciesToDatabase(species)
+            setFormData({ ...formData, species: mappedSpecies })
+            setAIVerified(true)
+            setShowAIVerification(false)
+          }}
+          onReject={() => {
+            console.log('❌ User rejected catch - discarding')
+            setShowAIVerification(false)
+            setPhoto(null)
+            setPhotoPreview(null)
+            setManualMode(false)
+            setAIVerified(false)
+            setAIDetectionResults([])
+          }}
+          onRetry={async () => {
+            console.log('🔄 Retrying AI detection...')
+            if (photo) {
+              setAIDetectionLoading(true)
+              try {
+                const results = await detectFishSpecies(photo)
+                setAIDetectionResults(results.results || [])
+                if (results.detections === 0) {
+                  setShowAIVerification(false)
+                  setShowNoDetection(true)
+                }
+              } catch (error) {
+                console.error('Retry failed:', error)
+                setShowAIVerification(false)
+                setShowNoDetection(true)
+              } finally {
+                setAIDetectionLoading(false)
+              }
+            }
+          }}
+          onManualOverride={() => {
+            console.log('📝 User chose manual mode from verification')
+            setShowAIVerification(false)
+            setManualMode(true)
+            setAIVerified(false)
+          }}
+        />
+      )}
+
+      {/* No Detection Modal */}
+      {showNoDetection && photoPreview && (
+        <NoDetectionModal
+          photoPreview={photoPreview}
+          onRetry={async () => {
+            console.log('🔄 Retrying AI detection from NoDetectionModal...')
+            if (photo) {
+              setShowNoDetection(false)
+              setAIDetectionLoading(true)
+              try {
+                const results = await detectFishSpecies(photo)
+                if (results.detections > 0 && results.results.length > 0) {
+                  setAIDetectionResults(results.results)
+                  setShowAIVerification(true)
+                } else {
+                  setShowNoDetection(true)
+                }
+              } catch (error) {
+                console.error('Retry failed:', error)
+                setShowNoDetection(true)
+              } finally {
+                setAIDetectionLoading(false)
+              }
+            }
+          }}
+          onManualOverride={() => {
+            console.log('📝 User chose manual mode from NoDetectionModal')
+            setShowNoDetection(false)
+            setManualMode(true)
+            setAIVerified(false)
+          }}
+          onReject={() => {
+            console.log('❌ User rejected from NoDetectionModal - discarding')
+            setShowNoDetection(false)
+            setPhoto(null)
+            setPhotoPreview(null)
+            setManualMode(false)
+            setAIVerified(false)
+          }}
+        />
+      )}
+
+      {/* Scan Animation Modal */}
+      {newDiscovery && (
+        <ScanAnimation
+          species={newDiscovery.species}
+          newAchievements={newDiscovery.achievements}
+          onClose={() => {
+            setNewDiscovery(null)
+            onSuccess()
+          }}
+        />
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
       {/* Photo Upload */}
       <div>
         <label className="block text-ocean-light text-sm mb-2">
@@ -179,11 +455,53 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
               fill
               className="object-cover"
             />
+            
+            {/* Status Badge - Top Left (Icon only with tooltip) */}
+            {aiDetectionLoading && (
+              <div className="absolute top-2 left-2 bg-blue-500/90 backdrop-blur-sm text-white p-2 rounded-full animate-pulse group cursor-help">
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+                {/* Tooltip */}
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  KI-Analyse läuft...
+                </div>
+              </div>
+            )}
+            
+            {!aiDetectionLoading && aiVerified && (
+              <div className="absolute top-2 left-2 bg-green-500/90 backdrop-blur-sm text-white p-2 rounded-full group cursor-help">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {/* Tooltip */}
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  ✅ KI-verifiziert → FishDex
+                </div>
+              </div>
+            )}
+            
+            {!aiDetectionLoading && manualMode && !aiVerified && (
+              <div className="absolute top-2 left-2 bg-yellow-500/90 backdrop-blur-sm text-white p-2 rounded-full group cursor-help">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                {/* Tooltip */}
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                  ✋ Manuell → Kein FishDex
+                </div>
+              </div>
+            )}
+            
             <button
               type="button"
               onClick={() => {
                 setPhoto(null)
                 setPhotoPreview(null)
+                setManualMode(false)
+                setAIVerified(false)
+                setAIDetectionResults([])
               }}
               className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-lg text-sm"
             >
@@ -204,18 +522,45 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
             />
           </label>
         )}
+        
+        {/* Verification Status Info */}
+        {photoPreview && (
+          <div className="mt-2 text-sm text-ocean-light">
+            {aiDetectionLoading && (
+              <p>🤖 Die KI analysiert dein Foto...</p>
+            )}
+            {!aiDetectionLoading && aiVerified && formData.species && (
+              <p className="text-green-400">
+                ✓ Verifiziert als <strong>{formData.species}</strong> - wird im FishDex freigeschaltet
+              </p>
+            )}
+            {!aiDetectionLoading && manualMode && (
+              <p className="text-yellow-400">
+                ⚠️ Manuelle Eingabe - Fang wird gespeichert, aber NICHT im FishDex gewertet
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Species */}
       <div>
         <label className="block text-ocean-light text-sm mb-2">
           Fischart *
+          {aiVerified && (
+            <span className="ml-2 text-xs text-green-400">
+              🔒 KI-verifiziert
+            </span>
+          )}
         </label>
         <select
           value={formData.species}
           onChange={(e) => setFormData({ ...formData, species: e.target.value })}
-          className="w-full px-4 py-2 rounded-lg bg-ocean-dark text-white border border-ocean-light/30 focus:border-ocean-light focus:outline-none"
+          className={`w-full px-4 py-2 rounded-lg bg-ocean-dark text-white border border-ocean-light/30 focus:border-ocean-light focus:outline-none ${
+            aiVerified ? 'opacity-60 cursor-not-allowed' : ''
+          }`}
           required
+          disabled={aiVerified}
         >
           <option value="">Wähle eine Art</option>
           {FISH_SPECIES.map((species) => (
@@ -224,6 +569,11 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
             </option>
           ))}
         </select>
+        {aiVerified && (
+          <p className="text-ocean-light text-xs mt-1">
+            Die Art wurde durch KI verifiziert und kann nicht mehr geändert werden.
+          </p>
+        )}
       </div>
 
       {/* Length & Weight */}
@@ -346,6 +696,35 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
         />
       </div>
 
+      {/* Public Toggle */}
+      <div className="bg-ocean/20 rounded-lg p-4 border border-ocean-light/20">
+        <label className="flex items-center justify-between cursor-pointer group">
+          <div className="flex-1">
+            <div className="text-white font-semibold mb-1 flex items-center gap-2">
+              <svg className="w-5 h-5 text-ocean-light" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Öffentlich teilen
+            </div>
+            <div className="text-ocean-light text-xs">
+              {formData.isPublic
+                ? 'Dieser Fang wird öffentlich sichtbar sein'
+                : 'Nur du kannst diesen Fang sehen'}
+            </div>
+          </div>
+          <div className="relative ml-4">
+            <input
+              type="checkbox"
+              checked={formData.isPublic}
+              onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-14 h-8 bg-ocean-dark rounded-full peer peer-checked:bg-green-500 transition-colors"></div>
+            <div className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full transition-transform peer-checked:translate-x-6"></div>
+          </div>
+        </label>
+      </div>
+
       {/* Submit */}
       <button
         type="submit"
@@ -355,5 +734,6 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
         {uploading ? 'Speichern...' : 'Fang speichern'}
       </button>
     </form>
+    </>
   )
 }

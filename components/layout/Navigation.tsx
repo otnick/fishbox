@@ -14,12 +14,14 @@ import {
   UserPlus,
   Menu,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  BookOpen
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Fänge', href: '/catches', icon: Fish },
+  { name: 'FishDex', href: '/fishdex', icon: BookOpen },
   { name: 'Galerie', href: '/gallery', icon: ImageIcon },
   { name: 'Karte', href: '/map', icon: Map },
   { name: 'Statistiken', href: '/stats', icon: BarChart3 },

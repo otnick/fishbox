@@ -1,16 +1,48 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCatchStore } from '@/lib/store'
+import { supabase } from '@/lib/supabase'
 import { format, subDays, isAfter } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Plus, MapPin, BarChart3, User } from 'lucide-react'
+import { Plus, MapPin, BarChart3, User, BookOpen, Trophy } from 'lucide-react'
 import FishAquarium from '@/components/FishAquarium'
 
 export default function DashboardPage() {
   const catches = useCatchStore((state) => state.catches)
+  const user = useCatchStore((state) => state.user)
+  const [fishDexStats, setFishDexStats] = useState<{discovered: number, total: number} | null>(null)
+
+  useEffect(() => {
+    if (user) {
+      loadFishDexStats()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  const loadFishDexStats = async () => {
+    if (!user) return
+    
+    try {
+      // Get total Deutschland species
+      const { count: total } = await supabase
+        .from('fish_species')
+        .select('*', { count: 'exact', head: true })
+        .eq('region', 'deutschland')
+
+      // Get user's discovered species
+      const { count: discovered } = await supabase
+        .from('user_fishdex')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+
+      setFishDexStats({ discovered: discovered || 0, total: total || 0 })
+    } catch (error) {
+      console.error('Error loading FishDex stats:', error)
+    }
+  }
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -68,6 +100,80 @@ export default function DashboardPage() {
           <FishAquarium />
         </div>
       </div>
+
+      {/* FishDex Widget */}
+      {fishDexStats && (
+        <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-6 h-6 text-ocean-light" />
+              <h2 className="text-xl font-bold text-white">FishDex</h2>
+            </div>
+            <Link
+              href="/fishdex"
+              className="text-ocean-light hover:text-white text-sm transition-colors"
+            >
+              Zur FishDex →
+            </Link>
+          </div>
+
+          {/* Progress */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-ocean-light">Deutschland</span>
+              <span className="text-white font-semibold">
+                {fishDexStats.discovered}/{fishDexStats.total} (
+                {fishDexStats.total > 0 
+                  ? Math.round((fishDexStats.discovered / fishDexStats.total) * 100)
+                  : 0}%)
+              </span>
+            </div>
+            <div className="w-full bg-ocean-dark rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-ocean-light to-ocean h-full transition-all duration-500"
+                style={{ 
+                  width: `${fishDexStats.total > 0 
+                    ? (fishDexStats.discovered / fishDexStats.total) * 100 
+                    : 0}%` 
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/fishdex"
+              className="bg-ocean-dark/50 rounded-lg p-4 hover:bg-ocean-dark transition-colors"
+            >
+              <div className="text-2xl font-bold text-white mb-1">
+                {fishDexStats.discovered}
+              </div>
+              <div className="text-ocean-light text-sm">Entdeckt</div>
+            </Link>
+            <Link
+              href="/fishdex/achievements"
+              className="bg-ocean-dark/50 rounded-lg p-4 hover:bg-ocean-dark transition-colors flex items-center justify-between"
+            >
+              <div>
+                <div className="text-2xl font-bold text-yellow-400 mb-1">
+                  {fishDexStats.total - fishDexStats.discovered}
+                </div>
+                <div className="text-ocean-light text-sm">Zu finden</div>
+              </div>
+              <Trophy className="w-8 h-8 text-yellow-400/50" />
+            </Link>
+          </div>
+
+          {fishDexStats.discovered === 0 && (
+            <div className="mt-4 text-center p-4 bg-ocean-dark/30 rounded-lg">
+              <p className="text-ocean-light text-sm">
+                💡 Fange deinen ersten Fisch um die FishDex zu starten!
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recent Catches */}
       <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-6">

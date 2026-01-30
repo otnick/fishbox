@@ -32,6 +32,8 @@ interface PublicCatch {
 export default function UserProfilePage({ params }: { params: { username: string } }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [catches, setCatches] = useState<PublicCatch[]>([])
+  const [fishdexEntries, setFishdexEntries] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'gallery' | 'fishdex'>('gallery')
   const [stats, setStats] = useState({
     totalCatches: 0,
     uniqueSpecies: 0,
@@ -83,6 +85,20 @@ export default function UserProfilePage({ params }: { params: { username: string
         biggestCatch,
         totalWeight,
       })
+
+      // Get user's FishDex (discovered species)
+      const { data: fishdexData } = await supabase
+        .from('user_fishdex')
+        .select(`
+          *,
+          species:fish_species(*)
+        `)
+        .eq('user_id', profileData.id)
+        .order('discovered_at', { ascending: false })
+
+      if (fishdexData) {
+        setFishdexEntries(fishdexData)
+      }
     } catch (err) {
       console.error('Error fetching profile:', err)
       setError(true)
@@ -190,64 +206,92 @@ export default function UserProfilePage({ params }: { params: { username: string
         </div>
       </div>
 
-      {/* Catches Grid */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-          <Fish className="w-6 h-6 text-ocean-light" />
-          Öffentliche Fänge ({catches.length})
-        </h2>
+      {/* Tabs */}
+      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('gallery')}
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${
+              activeTab === 'gallery'
+                ? 'bg-ocean text-white'
+                : 'text-ocean-light hover:text-white'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Fish className="w-5 h-5" />
+              Galerie ({catches.length})
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('fishdex')}
+            className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-colors ${
+              activeTab === 'fishdex'
+                ? 'bg-ocean text-white'
+                : 'text-ocean-light hover:text-white'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Award className="w-5 h-5" />
+              FishDex ({fishdexEntries.length})
+            </div>
+          </button>
+        </div>
+      </div>
 
-        {catches.length === 0 ? (
-          <EmptyState
-            icon={Fish}
-            title={isOwnProfile ? 'Keine öffentlichen Fänge' : 'Noch keine öffentlichen Fänge'}
-            description={isOwnProfile 
-              ? 'Mache deine Fänge öffentlich, um sie hier zu zeigen.'
-              : 'Dieser Angler hat noch keine öffentlichen Fänge geteilt.'
-            }
-            actionLabel={isOwnProfile ? 'Zu meinen Fängen' : undefined}
-            actionHref={isOwnProfile ? '/catches' : undefined}
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {catches.map((catchData) => (
-              <Link key={catchData.id} href={`/catch/${catchData.id}`}>
-                <div className="bg-ocean/30 backdrop-blur-sm rounded-xl overflow-hidden hover:bg-ocean/40 transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-105 animate-slide-up">
-                  {catchData.photo_url ? (
-                    <div className="relative h-48 bg-ocean-dark">
-                      <Image
-                        src={catchData.photo_url}
-                        alt={catchData.species}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-ocean-deeper/60 to-transparent opacity-0 hover:opacity-100 transition-opacity" />
-                    </div>
-                  ) : (
-                    <div className="h-48 bg-gradient-to-br from-ocean-light/20 to-ocean-dark/20 flex items-center justify-center">
-                      <Fish className="w-12 h-12 text-ocean-light/50" />
-                    </div>
-                  )}
+      {/* Gallery Tab */}
+      {activeTab === 'gallery' && (
+        <div>
+          {catches.length === 0 ? (
+            <EmptyState
+              icon={Fish}
+              title={isOwnProfile ? 'Keine öffentlichen Fänge' : 'Noch keine öffentlichen Fänge'}
+              description={isOwnProfile 
+                ? 'Mache deine Fänge öffentlich, um sie hier zu zeigen.'
+                : 'Dieser Angler hat noch keine öffentlichen Fänge geteilt.'
+              }
+              actionLabel={isOwnProfile ? 'Zu meinen Fängen' : undefined}
+              actionHref={isOwnProfile ? '/catches' : undefined}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {catches.map((catchData) => (
+                <Link key={catchData.id} href={`/catch/${catchData.id}`}>
+                  <div className="bg-ocean/30 backdrop-blur-sm rounded-xl overflow-hidden hover:bg-ocean/40 transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-105 animate-slide-up">
+                    {catchData.photo_url ? (
+                      <div className="relative h-48 bg-ocean-dark">
+                        <Image
+                          src={catchData.photo_url}
+                          alt={catchData.species}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-ocean-deeper/60 to-transparent opacity-0 hover:opacity-100 transition-opacity" />
+                      </div>
+                    ) : (
+                      <div className="h-48 bg-gradient-to-br from-ocean-light/20 to-ocean-dark/20 flex items-center justify-center">
+                        <Fish className="w-12 h-12 text-ocean-light/50" />
+                      </div>
+                    )}
 
-                  <div className="p-4">
-                    <h3 className="text-lg font-bold text-white mb-1">
-                      {catchData.species}
-                    </h3>
-                    <div className="text-ocean-light text-sm mb-3">
-                      {catchData.length} cm
-                      {catchData.weight && ` • ${catchData.weight > 1000 
-                        ? `${(catchData.weight / 1000).toFixed(2)} kg`
-                        : `${catchData.weight} g`
-                      }`}
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-ocean-light">
-                      <span className="flex items-center gap-1">
-                        <Heart className="w-4 h-4" />
-                        {catchData.likes_count || 0}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageCircle className="w-4 h-4" />
-                        {catchData.comments_count || 0}
+                    <div className="p-4">
+                      <h3 className="text-lg font-bold text-white mb-1">
+                        {catchData.species}
+                      </h3>
+                      <div className="text-ocean-light text-sm mb-3">
+                        {catchData.length} cm
+                        {catchData.weight && ` • ${catchData.weight > 1000 
+                          ? `${(catchData.weight / 1000).toFixed(2)} kg`
+                          : `${catchData.weight} g`
+                        }`}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-ocean-light">
+                        <span className="flex items-center gap-1">
+                          <Heart className="w-4 h-4" />
+                          {catchData.likes_count || 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageCircle className="w-4 h-4" />
+                          {catchData.comments_count || 0}
                       </span>
                       <span className="ml-auto">
                         {format(new Date(catchData.date), 'dd.MM.yyyy')}
@@ -260,6 +304,59 @@ export default function UserProfilePage({ params }: { params: { username: string
           </div>
         )}
       </div>
+      )}
+
+      {/* FishDex Tab */}
+      {activeTab === 'fishdex' && (
+        <div>
+          {fishdexEntries.length === 0 ? (
+            <EmptyState
+              icon={Award}
+              title="Noch keine Arten entdeckt"
+              description="Fange verifizierte Fische, um sie im FishDex freizuschalten."
+            />
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {fishdexEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="bg-ocean/30 backdrop-blur-sm rounded-xl p-3 hover:bg-ocean/40 transition-all duration-300 hover:scale-105"
+                >
+                  <div className="aspect-square bg-ocean-dark rounded-lg mb-2 flex items-center justify-center relative overflow-hidden">
+                    {entry.species?.image_url ? (
+                      <Image
+                        src={entry.species.image_url}
+                        alt={entry.species.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <Fish className="w-12 h-12 text-ocean-light/50" />
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-white font-semibold text-sm mb-1">
+                      {entry.species?.name || 'Unbekannt'}
+                    </h3>
+                    <div className="text-ocean-light text-xs">
+                      {entry.total_caught}x gefangen
+                    </div>
+                    <div className="text-ocean-light text-xs">
+                      Größte: {entry.biggest_length}cm
+                    </div>
+                    {/* Rarity Stars */}
+                    {entry.species?.rarity && (
+                      <div className="mt-1 text-xs">
+                        {'⭐'.repeat(entry.species.rarity)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
