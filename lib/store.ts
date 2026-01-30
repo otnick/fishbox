@@ -27,6 +27,12 @@ export interface Catch {
   is_public?: boolean
   likes_count?: number
   comments_count?: number
+
+  verification_status?: 'pending' | 'verified' | 'manual'
+  ai_verified?: boolean
+  ai_species?: string
+  ai_confidence?: number
+  verified_at?: string
 }
 
 interface CatchStore {

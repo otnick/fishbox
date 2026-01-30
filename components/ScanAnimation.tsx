@@ -20,6 +20,7 @@ export default function ScanAnimation({ species, newAchievements = [], onClose }
   useEffect(() => {
     console.log('🎬 ScanAnimation MOUNTED!', { species: species.name, achievements: newAchievements.length })
     return () => console.log('🎬 ScanAnimation UNMOUNTED')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

@@ -150,7 +150,7 @@ export default function AIVerificationModal({
             <li>❌ <strong>Ablehnen:</strong> Fang wird verworfen (nicht gespeichert)</li>
           </ul>
           <p className="text-ocean-light text-xs mt-3 italic">
-            Hinweis: Bei "Bestätigen" wird die Art gesperrt.
+            Hinweis: Bei &quot;Bestätigen&quot; wird die Art gesperrt.
           </p>
         </div>
 
