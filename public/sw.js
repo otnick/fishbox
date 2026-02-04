@@ -1,5 +1,5 @@
 // Service Worker for FishBox PWA
-const CACHE_NAME = 'fishbox-v1'
+const CACHE_NAME = 'fishbox-v2'
 const urlsToCache = [
   '/',
   '/dashboard',
@@ -13,6 +13,7 @@ const urlsToCache = [
 
 // Install service worker
 self.addEventListener('install', (event) => {
+  self.skipWaiting()
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Opened cache')
@@ -23,20 +24,51 @@ self.addEventListener('install', (event) => {
 
 // Fetch from cache
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return
+  }
+
+  const url = new URL(event.request.url)
+
+  if (url.origin !== self.location.origin) {
+    return
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseToCache = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache)
+          })
+          return response
+        })
+        .catch(() =>
+          caches.match(event.request).then((response) => response || caches.match('/'))
+        )
+    )
+    return
+  }
+
+  if (url.pathname.startsWith('/_next/')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    )
+    return
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Cache hit - return response
       if (response) {
         return response
       }
 
       return fetch(event.request).then((response) => {
-        // Check if valid response
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response
         }
 
-        // Clone response
         const responseToCache = response.clone()
 
         caches.open(CACHE_NAME).then((cache) => {
@@ -54,15 +86,18 @@ self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME]
 
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName)
-          }
-        })
-      )
-    })
+    Promise.all([
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheWhitelist.indexOf(cacheName) === -1) {
+              return caches.delete(cacheName)
+            }
+          })
+        )
+      }),
+      self.clients.claim(),
+    ])
   )
 })
 
