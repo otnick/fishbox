@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useCatchStore } from '@/lib/store'
 import type { FishDexEntry, FishDexRegion, FishDexCategory, FishDexSortBy } from '@/lib/types/fishdex'
-import { getSpeciesInfo, getSpeciesRarity } from '@/lib/utils/speciesInfo'
+import { getSpeciesInfo, getSpeciesRarity, getSpeciesSearchTokens, normalizeSpeciesName } from '@/lib/utils/speciesInfo'
 import { Search, Filter, Trophy, Star, Lock, Fish, BookOpen } from 'lucide-react'
 
 export default function FishDexPage() {
@@ -17,6 +17,7 @@ export default function FishDexPage() {
   const [selectedCategory, setSelectedCategory] = useState<FishDexCategory>('all')
   const [sortBy, setSortBy] = useState<FishDexSortBy>('number')
   const [searchQuery, setSearchQuery] = useState('')
+  const [onlyDiscovered, setOnlyDiscovered] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -116,12 +117,20 @@ export default function FishDexPage() {
       })
     }
 
+    if (onlyDiscovered) {
+      filtered = filtered.filter(e => e.discovered)
+    }
+
     // Search filter
     if (searchQuery) {
-      filtered = filtered.filter(e =>
-        e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.scientific_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      const query = normalizeSpeciesName(searchQuery)
+      filtered = filtered.filter(e => {
+        const tokens = getSpeciesSearchTokens({
+          scientificName: e.scientific_name,
+          germanName: e.name,
+        })
+        return tokens.some(token => token.includes(query))
+      })
     }
 
     // Sort
@@ -176,6 +185,79 @@ export default function FishDexPage() {
       default: return 'text-gray-400'
     }
   }
+
+  const quickCategories: Array<{ value: FishDexCategory; label: string }> = [
+    { value: 'all', label: 'Alle' },
+    { value: 'freshwater', label: 'Süßwasser' },
+    { value: 'saltwater', label: 'Salzwasser' },
+    { value: 'predator', label: 'Raubfische' },
+    { value: 'peaceful', label: 'Friedfische' },
+  ]
+
+  const collectionStats = useMemo(() => {
+    const sets = [
+      { key: 'freshwater', label: 'Süßwasser' },
+      { key: 'saltwater', label: 'Salzwasser' },
+      { key: 'predator', label: 'Raubfische' },
+      { key: 'peaceful', label: 'Friedfische' },
+    ] as const
+
+    return sets.map((set) => {
+      const total = entries.filter(e => {
+        const info = getSpeciesInfo({ scientificName: e.scientific_name, germanName: e.name })
+        if (set.key === 'freshwater') {
+          if (info?.wasser) return info.wasser.includes('süßwasser')
+          return e.habitat === 'freshwater'
+        }
+        if (set.key === 'saltwater') {
+          if (info?.wasser) return info.wasser.includes('salzwasser')
+          return e.habitat === 'saltwater'
+        }
+        if (set.key === 'predator') {
+          if (info?.typ) return info.typ === 'raubfisch'
+          return ['Hecht', 'Zander', 'Barsch', 'Wels'].includes(e.name)
+        }
+        if (set.key === 'peaceful') {
+          if (info?.typ) return info.typ === 'friedfisch'
+          return ['Karpfen', 'Brassen', 'Rotauge', 'Schleie'].includes(e.name)
+        }
+        return false
+      }).length
+
+      const discovered = entries.filter(e => e.discovered).filter(e => {
+        const info = getSpeciesInfo({ scientificName: e.scientific_name, germanName: e.name })
+        if (set.key === 'freshwater') {
+          if (info?.wasser) return info.wasser.includes('süßwasser')
+          return e.habitat === 'freshwater'
+        }
+        if (set.key === 'saltwater') {
+          if (info?.wasser) return info.wasser.includes('salzwasser')
+          return e.habitat === 'saltwater'
+        }
+        if (set.key === 'predator') {
+          if (info?.typ) return info.typ === 'raubfisch'
+          return ['Hecht', 'Zander', 'Barsch', 'Wels'].includes(e.name)
+        }
+        if (set.key === 'peaceful') {
+          if (info?.typ) return info.typ === 'friedfisch'
+          return ['Karpfen', 'Brassen', 'Rotauge', 'Schleie'].includes(e.name)
+        }
+        return false
+      }).length
+
+      const percentage = total > 0 ? Math.round((discovered / total) * 100) : 0
+
+      return { label: set.label, total, discovered, percentage }
+    })
+  }, [entries])
+
+  const globalIndexMap = useMemo(() => {
+    const map = new Map<string, number>()
+    entries.forEach((entry, idx) => {
+      map.set(entry.id, idx + 1)
+    })
+    return map
+  }, [entries])
 
   if (loading) {
     return (
@@ -237,21 +319,8 @@ export default function FishDexPage() {
             className="px-4 py-2 rounded-lg bg-ocean-dark text-white border border-ocean-light/30 focus:border-ocean-light focus:outline-none"
           >
             <option value="deutschland">Deutschland</option>
-            <option value="europa">Europa (Bald)</option>
-            <option value="weltweit">Weltweit (Bald)</option>
-          </select>
-
-          {/* Category */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value as FishDexCategory)}
-            className="px-4 py-2 rounded-lg bg-ocean-dark text-white border border-ocean-light/30 focus:border-ocean-light focus:outline-none"
-          >
-            <option value="all">Alle</option>
-            <option value="freshwater">Süßwasser</option>
-            <option value="saltwater">Salzwasser</option>
-            <option value="predator">Raubfische</option>
-            <option value="peaceful">Friedfische</option>
+            <option value="europa">Europa</option>
+            <option value="weltweit">Weltweit</option>
           </select>
 
           {/* Sort */}
@@ -277,12 +346,60 @@ export default function FishDexPage() {
               className="w-full pl-10 pr-4 py-2 rounded-lg bg-ocean-dark text-white border border-ocean-light/30 focus:border-ocean-light focus:outline-none"
             />
           </div>
+
+          {/* Discovered Toggle */}
+          <button
+            type="button"
+            onClick={() => setOnlyDiscovered(prev => !prev)}
+            className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
+              onlyDiscovered
+                ? 'bg-green-900/40 border-green-500/40 text-green-300'
+                : 'bg-ocean-dark border-ocean-light/30 text-ocean-light hover:text-white'
+            }`}
+          >
+            {onlyDiscovered ? 'Nur entdeckte' : 'Alle & Entdeckte'}
+          </button>
         </div>
+
+        {/* Quick Category Chips */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          {quickCategories.map((cat) => (
+            <button
+              key={cat.value}
+              onClick={() => setSelectedCategory(cat.value)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                selectedCategory === cat.value
+                  ? 'bg-ocean text-white border-ocean-light'
+                  : 'bg-ocean-dark/50 text-ocean-light border-ocean-light/30 hover:text-white'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Collections */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {collectionStats.map((set) => (
+          <div key={set.label} className="bg-ocean/30 backdrop-blur-sm rounded-xl p-4">
+            <div className="text-white font-semibold mb-2">{set.label}</div>
+            <div className="text-ocean-light text-sm mb-2">
+              {set.discovered}/{set.total} ({set.percentage}%)
+            </div>
+            <div className="w-full bg-ocean-dark rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-ocean-light to-ocean h-full"
+                style={{ width: `${set.percentage}%` }}
+              />
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        {filteredEntries.map((entry, index) => (
+        {filteredEntries.map((entry) => (
           <Link
             key={entry.id}
             href={`/fishdex/${entry.id}`}
@@ -297,7 +414,7 @@ export default function FishDexPage() {
           >
             {/* Number Badge */}
             <div className="absolute top-2 left-2 bg-ocean-deeper/80 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-bold text-white z-10">
-              #{String(index + 1).padStart(3, '0')}
+              #{String(globalIndexMap.get(entry.id) || 0).padStart(3, '0')}
             </div>
 
             {/* Rarity Badge */}

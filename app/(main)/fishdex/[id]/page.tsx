@@ -155,6 +155,9 @@ export default function FishDexDetailPage({ params }: { params: { id: string } }
     germanName: entry.name,
     fallback: entry.rarity,
   })
+  const seasons = info?.saison || []
+  const times = info?.tageszeit || []
+  const methods = info?.fangmethode || []
 
   const waterLabels = info?.wasser || []
 
@@ -307,6 +310,35 @@ export default function FishDexDetailPage({ params }: { params: { id: string } }
               <span className="text-ocean-light">({getRarityLabel(rarity)})</span>
             </div>
           </div>
+
+          {/* Quick Highlights */}
+          {info && (
+            <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-6">
+              <h3 className="text-white font-semibold mb-3">Schnellinfos</h3>
+              <div className="flex flex-wrap gap-2">
+                {seasons.length > 0 && (
+                  <span className="px-3 py-1 bg-ocean-dark rounded-full text-ocean-light text-sm">
+                    Saison: {seasons.join(', ')}
+                  </span>
+                )}
+                {times.length > 0 && (
+                  <span className="px-3 py-1 bg-ocean-dark rounded-full text-ocean-light text-sm">
+                    Tageszeit: {times.join(', ')}
+                  </span>
+                )}
+                {info.wassertemperatur && (
+                  <span className="px-3 py-1 bg-ocean-dark rounded-full text-ocean-light text-sm">
+                    {info.wassertemperatur.min ?? '-'}–{info.wassertemperatur.max ?? '-'}°C
+                  </span>
+                )}
+                {methods.length > 0 && (
+                  <span className="px-3 py-1 bg-ocean-dark rounded-full text-ocean-light text-sm">
+                    Methoden: {methods.join(', ')}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Discovery Stats */}
           {entry.discovered && entry.userProgress && (

@@ -78,3 +78,18 @@ export function getSpeciesRarity(params: {
   }
   return 1
 }
+
+export function getSpeciesSearchTokens(params: {
+  scientificName?: string | null
+  germanName?: string | null
+}) {
+  const info = getSpeciesInfo(params)
+  const tokens = new Set()
+
+  if (params.scientificName) tokens.add(normalizeSpeciesName(params.scientificName))
+  if (params.germanName) tokens.add(normalizeSpeciesName(params.germanName))
+  if (info?.name_de) tokens.add(normalizeSpeciesName(info.name_de))
+  if (info?.name_en) tokens.add(normalizeSpeciesName(info.name_en))
+
+  return Array.from(tokens).filter(Boolean)
+}
