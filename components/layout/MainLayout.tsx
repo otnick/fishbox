@@ -1,6 +1,8 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
+import CatchForm from '@/components/CatchForm'
+import { useCatchStore } from '@/lib/store'
 import Navigation from './Navigation'
 
 interface MainLayoutProps {
@@ -8,6 +10,18 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
+  const isCatchModalOpen = useCatchStore((state) => state.isCatchModalOpen)
+  const closeCatchModal = useCatchStore((state) => state.closeCatchModal)
+
+  useEffect(() => {
+    if (!isCatchModalOpen) return
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [isCatchModalOpen])
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-ocean-deeper to-ocean-dark">
       <Navigation />
@@ -18,6 +32,28 @@ export default function MainLayout({ children }: MainLayoutProps) {
           {children}
         </div>
       </main>
+
+      {isCatchModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={closeCatchModal}
+          />
+          <div className="relative w-full max-w-2xl max-h-[75vh] overflow-y-auto bg-ocean/30 backdrop-blur-sm rounded-2xl p-6 shadow-2xl animate-fadeIn">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Neuen Fang hinzufügen</h2>
+              <button
+                onClick={closeCatchModal}
+                className="text-ocean-light hover:text-white transition-colors text-xl leading-none"
+                aria-label="Schließen"
+              >
+                ×
+              </button>
+            </div>
+            <CatchForm onSuccess={closeCatchModal} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

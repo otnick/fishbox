@@ -146,7 +146,7 @@ export default function AIVerificationModal({
           </h4>
           <ul className="text-ocean-light text-sm space-y-1">
             <li>✅ <strong>Bestätigen:</strong> KI-Erkennung wird übernommen → FishDex Unlock</li>
-            <li>📝 <strong>Manuell:</strong> Du wählst die Art selbst → Nur Catch, kein FishDex</li>
+            <li>📝 <strong>Manuell:</strong> Du wählst die Art selbst → Kein FishDex</li>
             <li>❌ <strong>Ablehnen:</strong> Fang wird verworfen (nicht gespeichert)</li>
           </ul>
           <p className="text-ocean-light text-xs mt-3 italic">

@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import Link from 'next/link'
 import Map from '@/components/Map'
+import VerificationBadge from '@/components/VerificationBadge'
 
 interface SharedCatch {
   id: string
@@ -21,6 +22,8 @@ interface SharedCatch {
   coordinates?: { lat: number; lng: number }
   weather?: any
   user_email?: string
+  verification_status?: 'pending' | 'verified' | 'rejected' | 'manual'
+  ai_verified?: boolean
   likes_count: number
 }
 
@@ -139,6 +142,21 @@ export default function SharePage({ params }: { params: { id: string } }) {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h2 className="text-3xl font-bold text-white mb-2">{catchData.species}</h2>
+                <div className="flex items-center gap-2 mb-3">
+                  <VerificationBadge
+                    status={catchData.verification_status}
+                    aiVerified={catchData.ai_verified}
+                  />
+                  <span className="text-xs text-ocean-light">
+                    {catchData.verification_status === 'verified' || catchData.ai_verified
+                      ? 'Verifiziert'
+                      : catchData.verification_status === 'manual'
+                        ? 'Manuell'
+                        : catchData.verification_status === 'rejected'
+                          ? 'Abgelehnt'
+                          : 'Ausstehend'}
+                  </span>
+                </div>
                 <p className="text-ocean-light">
                   {format(new Date(catchData.date), 'dd. MMMM yyyy', { locale: de })}
                 </p>

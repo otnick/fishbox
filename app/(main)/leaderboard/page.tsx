@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useCatchStore } from '@/lib/store'
 import Link from 'next/link'
 import { Trophy, Fish, TrendingUp, Award, Eye } from 'lucide-react'
+import VerificationBadge from '@/components/VerificationBadge'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
 import EmptyState from '@/components/EmptyState'
 
@@ -19,6 +20,8 @@ interface LeaderboardEntry {
   biggest_catch_id: string
   unique_species: number
   recent_catch_photo?: string
+  recent_catch_status?: 'pending' | 'verified' | 'rejected' | 'manual'
+  recent_catch_ai_verified?: boolean
 }
 
 export default function LeaderboardPage() {
@@ -75,6 +78,8 @@ export default function LeaderboardPage() {
         biggestCatchId: string
         species: Set<string>
         recentPhoto?: string
+        recentStatus?: 'pending' | 'verified' | 'rejected' | 'manual'
+        recentAiVerified?: boolean
       }>()
 
       catches.forEach((c: any) => {
@@ -103,6 +108,8 @@ export default function LeaderboardPage() {
 
         if (!stats.recentPhoto && c.photo_url) {
           stats.recentPhoto = c.photo_url
+          stats.recentStatus = c.verification_status
+          stats.recentAiVerified = c.ai_verified
         }
       })
 
@@ -128,6 +135,8 @@ export default function LeaderboardPage() {
             biggest_catch_id: stats.biggestCatchId,
             unique_species: stats.species.size,
             recent_catch_photo: stats.recentPhoto,
+            recent_catch_status: stats.recentStatus,
+            recent_catch_ai_verified: stats.recentAiVerified,
           }
         })
         .sort((a, b) => {
@@ -263,11 +272,25 @@ export default function LeaderboardPage() {
                         fill
                         className="object-cover"
                       />
+                      <div className="absolute top-2 left-2">
+                        <VerificationBadge
+                          status={entry.recent_catch_status}
+                          aiVerified={entry.recent_catch_ai_verified}
+                        />
+                      </div>
                       <div className="absolute inset-0 bg-gradient-to-t from-ocean-deeper to-transparent" />
                     </div>
                   ) : (
                     <div className="h-32 bg-gradient-to-br from-ocean-light/20 to-ocean-dark/20 flex items-center justify-center">
                       <Fish className="w-12 h-12 text-ocean-light/50" />
+                    </div>
+                  )}
+                  {!entry.recent_catch_photo && (
+                    <div className="absolute top-2 left-2">
+                      <VerificationBadge
+                        status={entry.recent_catch_status}
+                        aiVerified={entry.recent_catch_ai_verified}
+                      />
                     </div>
                   )}
                   <div className="absolute top-2 left-2 bg-ocean-deeper/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1">

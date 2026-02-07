@@ -46,17 +46,19 @@ export default function FishDexDetailPage({ params }: { params: { id: string } }
         .eq('species_id', params.id)
         .single()
 
-      // Load user's catches of this species (ONLY AI-verified)
+      // Load user's catches of this species (verified only)
       if (progress) {
         const { data: userCatches } = await supabase
           .from('catches')
           .select('*')
           .eq('user_id', user.id)
           .eq('species', species.name)
-          .eq('verification_status', 'verified') // ONLY AI-verified
+          .or('verification_status.eq.verified,ai_verified.eq.true')
           .order('date', { ascending: false })
 
         setCatches(userCatches || [])
+      } else {
+        setCatches([])
       }
 
       setEntry({
@@ -203,7 +205,7 @@ export default function FishDexDetailPage({ params }: { params: { id: string } }
               {entry.discovered ? (
                 <div className="inline-flex items-center gap-2 bg-green-900/30 text-green-400 px-4 py-2 rounded-full">
                   <Trophy className="w-5 h-5" />
-                  <span className="font-bold">ENTDECKT</span>
+                  <span className="font-bold">VERIFIZIERT</span>
                 </div>
               ) : (
                 <div className="inline-flex items-center gap-2 bg-gray-900/30 text-gray-400 px-4 py-2 rounded-full">

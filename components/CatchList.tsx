@@ -9,6 +9,7 @@ import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Eye, Trash2, MapPin, Calendar, Ruler } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import VerificationBadge from '@/components/VerificationBadge'
 
 const Map = dynamic(() => import('./Map'), { ssr: false })
 
@@ -90,28 +91,11 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
                     />
                     
                     {/* Verification Status Badge - Icon only with tooltip */}
-                    {catchItem.verification_status === 'verified' && (
-                      <div className="absolute top-2 left-2 bg-green-500/90 backdrop-blur-sm text-white p-2 rounded-full group cursor-help shadow-lg">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {/* Tooltip */}
-                        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          ✅ KI-verifiziert
-                        </div>
-                      </div>
-                    )}
-                    {catchItem.verification_status === 'manual' && (
-                      <div className="absolute top-2 left-2 bg-yellow-500/90 backdrop-blur-sm text-white p-2 rounded-full group cursor-help shadow-lg">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                        {/* Tooltip */}
-                        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          ✋ Manuell
-                        </div>
-                      </div>
-                    )}
+                    <VerificationBadge
+                      status={catchItem.verification_status as any}
+                      aiVerified={catchItem.ai_verified}
+                      className="absolute top-2 left-2"
+                    />
                     
                     {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">

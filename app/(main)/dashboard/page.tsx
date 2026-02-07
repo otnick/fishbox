@@ -9,6 +9,7 @@ import { format, subDays, isAfter } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Plus, MapPin, BarChart3, User, BookOpen, Trophy, LayoutDashboard } from 'lucide-react'
 import FishAquarium from '@/components/FishAquarium'
+import VerificationBadge from '@/components/VerificationBadge'
 
 export default function DashboardPage() {
   const catches = useCatchStore((state) => state.catches)
@@ -214,10 +215,28 @@ export default function DashboardPage() {
                         fill
                         className="object-cover rounded-lg group-hover:scale-105 transition-transform"
                       />
+                      <div className="absolute -top-1 -left-1">
+                        <VerificationBadge
+                          status={catchData.verification_status as any}
+                          aiVerified={catchData.ai_verified}
+                          className="scale-75 origin-top-left"
+                        />
+                      </div>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-white truncate group-hover:text-ocean-light transition-colors">{catchData.species}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-semibold text-white truncate group-hover:text-ocean-light transition-colors">
+                        {catchData.species}
+                      </div>
+                      {!catchData.photo && (
+                        <VerificationBadge
+                          status={catchData.verification_status as any}
+                          aiVerified={catchData.ai_verified}
+                          className="scale-75 origin-left"
+                        />
+                      )}
+                    </div>
                     <div className="text-sm text-ocean-light">
                       {catchData.length} cm
                       {catchData.weight && ` • ${catchData.weight > 1000 

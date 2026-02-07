@@ -8,6 +8,7 @@ import { useCatchStore } from '@/lib/store'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { User, Calendar, Fish, Award, Heart, MessageCircle, ArrowLeft, Edit } from 'lucide-react'
+import VerificationBadge from '@/components/VerificationBadge'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
 import EmptyState from '@/components/EmptyState'
 import { getSpeciesRarity } from '@/lib/utils/speciesInfo'
@@ -28,6 +29,8 @@ interface PublicCatch {
   date: string
   likes_count: number
   comments_count: number
+  verification_status?: 'pending' | 'verified' | 'rejected' | 'manual'
+  ai_verified?: boolean
 }
 
 export default function UserProfilePage({ params }: { params: { username: string } }) {
@@ -107,34 +110,54 @@ export default function UserProfilePage({ params }: { params: { username: string
         .order('discovered_at', { ascending: false })
 
       if (fishdexData) {
-        const progressWithPhotos = await Promise.all(
-          fishdexData.map(async (entry: any) => {
-            const speciesName = entry.species?.name || ''
-            if (!speciesName) {
-              return { ...entry, photo_url: null }
-            }
+        let catchesQuery = supabase
+          .from('catches')
+          .select('species, verification_status, ai_verified, photo_url, length, is_public')
+          .eq('user_id', profileData.id)
+          .or('verification_status.eq.verified,ai_verified.eq.true')
 
-            let biggestCatchQuery = supabase
-              .from('catches')
-              .select('photo_url, length')
-              .eq('user_id', profileData.id)
-              .eq('species', speciesName)
-              .eq('verification_status', 'verified')
-              .order('length', { ascending: false })
-              .limit(1)
+        if (publicOnly) {
+          catchesQuery = catchesQuery.eq('is_public', true)
+        }
 
-            if (publicOnly) {
-              biggestCatchQuery = biggestCatchQuery.eq('is_public', true)
-            }
+        const { data: allCatches } = await catchesQuery
 
-            const { data: biggestCatch } = await biggestCatchQuery.single()
+        const statsMap = new Map<
+          string,
+          {
+            bestPhoto?: string | null
+            bestLength: number
+          }
+        >()
 
-            return {
-              ...entry,
-              photo_url: biggestCatch?.photo_url || null,
-            }
-          })
-        )
+        ;(allCatches || []).forEach((c) => {
+          const name = (c.species || '').toLowerCase()
+          if (!name) return
+
+          const length = c.length || 0
+          const stats = statsMap.get(name) || {
+            bestPhoto: null,
+            bestLength: 0,
+          }
+
+          if (c.photo_url && length >= stats.bestLength) {
+            stats.bestLength = length
+            stats.bestPhoto = c.photo_url
+          }
+
+          statsMap.set(name, stats)
+        })
+
+        const progressWithPhotos = fishdexData.map((entry: any) => {
+          const speciesName = entry.species?.name || ''
+          const stats = statsMap.get(speciesName.toLowerCase())
+
+          return {
+            ...entry,
+            photo_url: stats?.bestPhoto || null,
+            verified: true,
+          }
+        })
 
         setFishdexEntries(progressWithPhotos)
       }
@@ -346,6 +369,11 @@ export default function UserProfilePage({ params }: { params: { username: string
                           fill
                           className="object-cover"
                         />
+                        <VerificationBadge
+                          status={catchData.verification_status}
+                          aiVerified={catchData.ai_verified}
+                          className="absolute top-2 left-2"
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-ocean-deeper/60 to-transparent opacity-0 hover:opacity-100 transition-opacity" />
                       </div>
                     ) : (
@@ -355,9 +383,18 @@ export default function UserProfilePage({ params }: { params: { username: string
                     )}
 
                     <div className="p-4">
-                      <h3 className="text-lg font-bold text-white mb-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold text-white">
                         {catchData.species}
-                      </h3>
+                        </h3>
+                        {!catchData.photo_url && (
+                          <VerificationBadge
+                            status={catchData.verification_status}
+                            aiVerified={catchData.ai_verified}
+                            className="ml-1"
+                          />
+                        )}
+                      </div>
                       <div className="text-ocean-light text-sm mb-3">
                         {catchData.length} cm
                         {catchData.weight && ` • ${catchData.weight > 1000 

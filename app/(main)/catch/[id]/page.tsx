@@ -9,6 +9,7 @@ import { useCatchStore } from '@/lib/store'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Heart, MessageCircle, MapPin, Calendar, Ruler, Scale, Fish as FishIcon, ArrowLeft } from 'lucide-react'
+import VerificationBadge from '@/components/VerificationBadge'
 
 const Map = dynamic(() => import('@/components/Map'), { ssr: false })
 const Comments = dynamic(() => import('@/components/Comments'), { ssr: false })
@@ -28,6 +29,8 @@ interface CatchDetail {
   user_id: string
   username: string
   is_public: boolean
+  verification_status?: 'pending' | 'verified' | 'rejected' | 'manual'
+  ai_verified?: boolean
   likes_count: number
   comments_count: number
   user_has_liked: boolean
@@ -241,6 +244,21 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
               <FishIcon className="w-8 h-8 text-ocean-light" />
               {catchData.species}
             </h1>
+            <div className="flex items-center gap-2 mb-3">
+              <VerificationBadge
+                status={catchData.verification_status}
+                aiVerified={catchData.ai_verified}
+              />
+              <span className="text-xs text-ocean-light">
+                {catchData.verification_status === 'verified' || catchData.ai_verified
+                  ? 'Verifiziert'
+                  : catchData.verification_status === 'manual'
+                    ? 'Manuell'
+                    : catchData.verification_status === 'rejected'
+                      ? 'Abgelehnt'
+                      : 'Ausstehend'}
+              </span>
+            </div>
             <Link href={`/user/${catchData.username}`}>
               <p className="text-ocean-light text-sm hover:text-white transition-colors mb-4">
                 von @{catchData.username}

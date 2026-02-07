@@ -39,6 +39,7 @@ export interface UserFishDexEntry {
 export interface FishDexEntry extends FishSpecies {
   discovered: boolean
   userProgress?: UserFishDexEntry
+  verified?: boolean
 }
 
 export interface Achievement {

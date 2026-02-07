@@ -47,26 +47,52 @@ export default function FishDexPage() {
 
       if (progressError) throw progressError
 
-      // For each discovered species, load the biggest catch photo
-      const progressWithPhotos = await Promise.all(
-        (userProgress || []).map(async (progress) => {
-          // Get biggest catch for this species (ONLY AI-verified catches)
-          const { data: biggestCatch } = await supabase
-            .from('catches')
-            .select('photo_url, length, verification_status')
-            .eq('user_id', user.id)
-            .eq('species', species?.find(s => s.id === progress.species_id)?.name || '')
-            .eq('verification_status', 'verified') // ONLY AI-verified
-            .order('length', { ascending: false })
-            .limit(1)
-            .single()
+      const speciesById = new Map((species || []).map(s => [s.id, s]))
 
-          return {
-            ...progress,
-            photo_url: biggestCatch?.photo_url || null
-          }
-        })
-      )
+      const { data: userCatches, error: catchesError } = await supabase
+        .from('catches')
+        .select('species, verification_status, ai_verified, photo_url, length')
+        .eq('user_id', user.id)
+        .or('verification_status.eq.verified,ai_verified.eq.true')
+
+      if (catchesError) throw catchesError
+
+      const catchStats = new Map<
+        string,
+        {
+          bestPhoto?: string | null
+          bestLength: number
+        }
+      >()
+
+      ;(userCatches || []).forEach((c) => {
+        const name = (c.species || '').toLowerCase()
+        if (!name) return
+
+        const length = c.length || 0
+        const stats = catchStats.get(name) || {
+          bestPhoto: null,
+          bestLength: 0,
+        }
+
+        if (c.photo_url && length >= stats.bestLength) {
+          stats.bestLength = length
+          stats.bestPhoto = c.photo_url
+        }
+
+        catchStats.set(name, stats)
+      })
+
+      const progressWithPhotos = (userProgress || []).map((progress) => {
+        const speciesName = speciesById.get(progress.species_id)?.name || ''
+        const stats = catchStats.get(speciesName.toLowerCase())
+
+        return {
+          ...progress,
+          photo_url: stats?.bestPhoto || null,
+          verified: true,
+        }
+      })
 
       // Merge data
       const progressMap = new Map(
@@ -78,7 +104,8 @@ export default function FishDexPage() {
         discovered: progressMap.has(s.id),
         userProgress: progressMap.get(s.id),
         // Use photo from biggest catch if available
-        image_url: progressMap.get(s.id)?.photo_url || s.image_url
+        image_url: progressMap.get(s.id)?.photo_url || s.image_url,
+        verified: progressMap.get(s.id)?.verified ?? true,
       }))
 
       setEntries(fishDexEntries)

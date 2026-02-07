@@ -11,7 +11,6 @@ export default function CatchesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterSpecies, setFilterSpecies] = useState('all')
   const [sortBy, setSortBy] = useState<'date' | 'length' | 'weight'>('date')
-
   const catches = useCatchStore((state) => state.catches)
 
   // Get unique species for filter

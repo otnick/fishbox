@@ -39,10 +39,16 @@ interface CatchStore {
   catches: Catch[]
   user: User | null
   loading: boolean
+  isCatchModalOpen: boolean
   
   // Auth methods
   setUser: (user: User | null) => void
   signOut: () => Promise<void>
+
+  // UI methods
+  openCatchModal: () => void
+  closeCatchModal: () => void
+  toggleCatchModal: () => void
   
   // Catch methods
   fetchCatches: () => Promise<void>
@@ -55,6 +61,7 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
   catches: [],
   user: null,
   loading: false,
+  isCatchModalOpen: false,
 
   setUser: (user) => {
     set({ user })
@@ -69,6 +76,10 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
     await supabase.auth.signOut()
     set({ user: null, catches: [] })
   },
+
+  openCatchModal: () => set({ isCatchModalOpen: true }),
+  closeCatchModal: () => set({ isCatchModalOpen: false }),
+  toggleCatchModal: () => set((state) => ({ isCatchModalOpen: !state.isCatchModalOpen })),
 
   fetchCatches: async () => {
     const { user } = get()

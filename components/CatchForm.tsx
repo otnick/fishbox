@@ -222,8 +222,8 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
 
       await addCatch(catchData)
 
-      // Check if this was a new discovery (ONLY for AI-verified catches)
-      if (verificationData.ai_verified && verificationData.verification_status === 'verified') {
+      // Check if this was a new discovery (only verified)
+      if (verificationData.verification_status === 'verified') {
         await checkForNewDiscovery(catchData.species)
       }
 

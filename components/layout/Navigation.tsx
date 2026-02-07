@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useState } from 'react'
+import { useCatchStore } from '@/lib/store'
 import { 
   Home, 
   Fish, 
@@ -12,10 +13,10 @@ import {
   Trophy, 
   UserCircle,
   UserPlus,
-  Menu,
   X,
   Image as ImageIcon,
-  BookOpen
+  BookOpen,
+  Plus
 } from 'lucide-react'
 
 const navigation = [
@@ -34,6 +35,8 @@ const navigation = [
 export default function Navigation() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const isCatchModalOpen = useCatchStore((state) => state.isCatchModalOpen)
+  const toggleCatchModal = useCatchStore((state) => state.toggleCatchModal)
 
   return (
     <>
@@ -80,9 +83,14 @@ export default function Navigation() {
       </nav>
 
       {/* Mobile Bottom Nav */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-ocean-deeper/95 backdrop-blur-xl border-t border-ocean-light/10 z-40">
-        <div className="flex justify-around items-center h-16 px-2">
-          {navigation.slice(0, 4).map((item) => {
+      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-ocean-deeper/95 backdrop-blur-xl border-t border-ocean-light/10 z-50 pb-[env(safe-area-inset-bottom)]">
+        <div className="relative grid grid-cols-5 items-center h-20 px-2">
+          {[
+            { name: 'Dashboard', href: '/dashboard', icon: Home, colClass: 'col-start-1' },
+            { name: 'Fänge', href: '/catches', icon: Fish, colClass: 'col-start-2' },
+            { name: 'FishDex', href: '/fishdex', icon: BookOpen, colClass: 'col-start-4' },
+            { name: 'Galerie', href: '/gallery', icon: ImageIcon, colClass: 'col-start-5' },
+          ].map((item) => {
             const isActive = pathname === item.href
             const Icon = item.icon
             return (
@@ -90,7 +98,8 @@ export default function Navigation() {
                 key={item.name}
                 href={item.href}
                 className={`
-                  flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all
+                  ${item.colClass}
+                  flex flex-col items-center justify-end gap-1 px-3 py-2 pb-1 rounded-xl transition-all
                   ${isActive
                     ? 'text-white'
                     : 'text-ocean-light'
@@ -98,17 +107,24 @@ export default function Navigation() {
                 `}
               >
                 <Icon className={`w-6 h-6 ${isActive ? 'text-ocean-light' : ''}`} />
-                <span className="text-xs font-medium">{item.name}</span>
+                <span className="text-xs font-medium leading-none">{item.name}</span>
               </Link>
             )
           })}
           <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl text-ocean-light"
+            type="button"
+            onClick={toggleCatchModal}
+            className="absolute left-1/2 -translate-x-1/2 -top-4 w-14 h-14 rounded-full bg-gradient-to-br from-ocean-light to-ocean text-white shadow-2xl flex items-center justify-center border-4 border-ocean-deeper transition-transform duration-200"
+            aria-label="Neuer Fang"
           >
-            <Menu className="w-6 h-6" />
-            <span className="text-xs font-medium">Mehr</span>
+            <Plus className={`w-7 h-7 transition-transform duration-200 ${isCatchModalOpen ? 'rotate-45' : ''}`} />
           </button>
+          <span
+            className={`absolute left-1/2 -translate-x-1/2 text-xs font-medium leading-none ${isCatchModalOpen ? 'text-white' : 'text-ocean-light'}`}
+            style={{ bottom: '1.2rem' }}
+          >
+            Fang
+          </span>
         </div>
       </div>
 
