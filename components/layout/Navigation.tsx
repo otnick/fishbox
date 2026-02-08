@@ -99,14 +99,14 @@ export default function Navigation() {
                 href={item.href}
                 className={`
                   ${item.colClass}
-                  flex flex-col items-center justify-end gap-1 px-3 py-2 pb-1 rounded-xl transition-all
+                  flex flex-col items-center justify-end gap-1 px-3 py-2 pb-2 rounded-xl transition-all
                   ${isActive
                     ? 'text-white'
                     : 'text-ocean-light'
                   }
                 `}
               >
-                <Icon className={`w-6 h-6 ${isActive ? 'text-ocean-light' : ''}`} />
+                <Icon className={`w-6 h-6 -translate-y-0.5 ${isActive ? 'text-ocean-light' : ''}`} />
                 <span className="text-xs font-medium leading-none">{item.name}</span>
               </Link>
             )
