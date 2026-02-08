@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase'
 import { uploadPhoto, compressImage } from '@/lib/utils/photoUpload'
 import { getCurrentPosition, getLocationName, formatCoordinates } from '@/lib/utils/geolocation'
 import { getCurrentWeather } from '@/lib/utils/weather'
+import { extractCoordinatesFromImage } from '@/lib/utils/exifGps'
 import {
   ALL_GERMAN_SPECIES,
   detectFishSpecies,
@@ -132,6 +133,26 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
         setPhotoPreview(reader.result as string)
       }
       reader.readAsDataURL(file)
+
+      // Try reading GPS EXIF metadata from image in parallel.
+      void (async () => {
+        const photoCoordinates = await extractCoordinatesFromImage(file)
+        if (!photoCoordinates) return
+
+        setCoordinates(photoCoordinates)
+
+        const [locationName, weatherData] = await Promise.all([
+          getLocationName(photoCoordinates),
+          getCurrentWeather(photoCoordinates),
+        ])
+
+        if (locationName) {
+          setFormData((prev) => ({ ...prev, location: locationName }))
+        }
+        if (weatherData) {
+          setWeather(weatherData)
+        }
+      })()
 
       // Run AI detection
       console.log('Starting AI detection...')
