@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { CheckCircle2, XCircle, AlertCircle, Loader2, PencilLine } from 'lucide-react'
 import type { FishDetectionResult } from '@/lib/utils/fishDetection'
@@ -29,6 +29,20 @@ export default function AIVerificationModal({
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(
     detectionResults[0]?.species || null
   )
+
+  useEffect(() => {
+    if (detectionLoading) return
+    if (!detectionResults.length) {
+      setSelectedSpecies(null)
+      return
+    }
+    const hasSelection = selectedSpecies
+      ? detectionResults.some((result) => result.species === selectedSpecies)
+      : false
+    if (!hasSelection) {
+      setSelectedSpecies(detectionResults[0].species)
+    }
+  }, [detectionLoading, detectionResults, selectedSpecies])
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 0.8) return 'text-green-400'
