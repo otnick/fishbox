@@ -17,8 +17,8 @@ export default function NoDetectionModal({
   onReject
 }: NoDetectionModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4">
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/90 z-[45] flex items-end sm:items-center justify-center p-2 sm:p-4">
+      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[calc(100vh-8.5rem)] sm:max-h-[90vh] overflow-x-hidden overflow-y-auto break-words">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <AlertTriangle className="w-8 h-8 text-red-400" />
@@ -55,7 +55,7 @@ export default function NoDetectionModal({
 
         {/* Actions */}
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={onRetry}
               className="bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 font-semibold py-4 px-4 rounded-lg transition-colors flex flex-col items-center justify-center gap-2 group"

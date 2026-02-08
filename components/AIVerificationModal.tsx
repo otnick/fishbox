@@ -41,8 +41,8 @@ export default function AIVerificationModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/90 z-[45] flex items-end sm:items-center justify-center p-2 sm:p-4">
+      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[calc(100vh-8.5rem)] sm:max-h-[92vh] overflow-x-hidden overflow-y-auto break-words">
         {/* Header */}
         <div className="flex items-start gap-3 mb-5 sm:mb-6">
           <AlertCircle className="w-7 h-7 sm:w-8 sm:h-8 text-ocean-light mt-1" />

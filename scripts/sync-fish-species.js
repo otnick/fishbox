@@ -5,16 +5,18 @@ const { createClient } = require('@supabase/supabase-js')
 
 const args = process.argv.slice(2)
 const shouldConfirm = args.includes('--confirm')
+const shouldPrune = args.includes('--prune')
+const shouldDedupe = args.includes('--dedupe')
 const tableArg = args.find((a) => a.startsWith('--table='))
 const tableName = tableArg ? tableArg.split('=')[1] : 'fish_species'
 
 const DEFAULT_REGION = 'weltweit'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://yooyqmhvjrmegraoopck.supabase.co"
 const SERVICE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.SUPABASE_SERVICE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlvb3lxbWh2anJtZWdyYW9vcGNrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTUwNjIxMywiZXhwIjoyMDg1MDgyMjEzfQ.xik5x_gj4uUmOuyC1_6rgJnz0RUfriAS3V6ufhN9VFA"
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Missing SUPABASE env vars.')
@@ -26,12 +28,18 @@ const infoPath = path.join(__dirname, '..', 'public', 'fish', 'species_info.json
 const speciesInfo = JSON.parse(fs.readFileSync(infoPath, 'utf8'))
 
 function normalizeName(name) {
-  return name
+  const fixed = String(name || '')
+    // Fix common mis-encodings first
+    .replace(/\u00c3\u00a4/g, '\u00e4')
+    .replace(/\u00c3\u00b6/g, '\u00f6')
+    .replace(/\u00c3\u00bc/g, '\u00fc')
+    .replace(/\u00c3\u009f/g, '\u00df')
+  return fixed
     .toLowerCase()
-    .replace(/ä/g, 'ae')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
+    .replace(/\u00e4/g, 'ae')
+    .replace(/\u00f6/g, 'oe')
+    .replace(/\u00fc/g, 'ue')
+    .replace(/\u00df/g, 'ss')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -39,7 +47,7 @@ function normalizeName(name) {
 
 function toHabitat(wasser) {
   const waters = Array.isArray(wasser) ? wasser : []
-  const hasFresh = waters.includes('süßwasser')
+  const hasFresh = waters.includes('süßwasser') || waters.includes('s\u00c3\u00bc\u00c3\u009fwasser')
   const hasSalt = waters.includes('salzwasser')
   if (hasFresh && hasSalt) return 'brackish'
   if (hasFresh) return 'freshwater'
@@ -97,7 +105,33 @@ function arraysEqual(a, b) {
   return aSorted.every((val, idx) => val === bSorted[idx])
 }
 
-const sourceRows = Object.entries(speciesInfo).map(([latin, info]) => {
+function scoreRow(row) {
+  let score = 0
+  if (Array.isArray(row.region)) {
+    if (row.region.includes('deutschland')) score += 5
+    if (row.region.includes('europa')) score += 2
+  }
+  if (row.rarity) score += 1
+  if (row.habitat) score += 1
+  if (row.best_time) score += 1
+  if (Array.isArray(row.baits)) score += row.baits.length * 0.1
+  return score
+}
+
+function scoreDbRow(row) {
+  let score = 0
+  if (Array.isArray(row.region)) {
+    if (row.region.includes('deutschland')) score += 5
+    if (row.region.includes('europa')) score += 2
+  }
+  if (row.rarity !== null && row.rarity !== undefined) score += 1
+  if (row.habitat) score += 1
+  if (row.best_time) score += 1
+  if (Array.isArray(row.baits)) score += row.baits.length * 0.1
+  return score
+}
+
+const rawRows = Object.entries(speciesInfo).map(([latin, info]) => {
   const rarity = toRarity(info.schwierigkeit)
   const regions = toRegions(info.region)
   return {
@@ -105,11 +139,29 @@ const sourceRows = Object.entries(speciesInfo).map(([latin, info]) => {
     name: info.name_de,
     rarity,
     habitat: toHabitat(info.wasser),
-    baits: toBaits(info.köder),
+    baits: toBaits(info['k\u00f6der'] || info['k\u00c3\u00b6der']),
     best_time: toBestTime(info.tageszeit),
     region: regions,
   }
 }).filter((row) => row.name && row.rarity)
+
+// De-duplicate by German name (prefer DE/EU, then most complete)
+const byGermanKey = new Map()
+for (const row of rawRows) {
+  const key = normalizeName(row.name)
+  const existing = byGermanKey.get(key)
+  if (!existing) {
+    byGermanKey.set(key, row)
+    continue
+  }
+  const existingScore = scoreRow(existing)
+  const rowScore = scoreRow(row)
+  if (rowScore > existingScore) {
+    byGermanKey.set(key, row)
+  }
+}
+
+const sourceRows = Array.from(byGermanKey.values())
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false },
@@ -118,6 +170,8 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
 async function run() {
   console.log(`Table: ${tableName}`)
   console.log(`Mode: ${shouldConfirm ? 'UPDATE/INSERT' : 'DRY-RUN'}`)
+  console.log(`Prune stale rows: ${shouldPrune ? 'YES' : 'NO'}`)
+  console.log(`Dedupe by name: ${shouldDedupe ? 'YES' : 'NO'}`)
   console.log(`Region default for missing: ${DEFAULT_REGION}`)
 
   const { data: rows, error } = await supabase
@@ -143,6 +197,16 @@ async function run() {
 
   const toInsert = []
   const toUpdate = []
+  const sourceScientific = new Set(
+    sourceRows
+      .map((r) => String(r.scientific_name || '').toLowerCase().trim())
+      .filter(Boolean)
+  )
+  const sourceGerman = new Set(
+    sourceRows
+      .map((r) => normalizeName(r.name))
+      .filter(Boolean)
+  )
 
   for (const src of sourceRows) {
     const scientificKey = src.scientific_name.toLowerCase()
@@ -178,11 +242,70 @@ async function run() {
   console.log(`To insert: ${toInsert.length}`)
   console.log(`To update: ${toUpdate.length}`)
 
+  let toDelete = []
+  if (shouldPrune) {
+    toDelete = (rows || []).filter((row) => {
+      const scientificKey = String(row.scientific_name || '').toLowerCase().trim()
+      const germanKey = normalizeName(row.name || '')
+      const keepByScientific = scientificKey && sourceScientific.has(scientificKey)
+      const keepByGerman = germanKey && sourceGerman.has(germanKey)
+      return !keepByScientific && !keepByGerman
+    })
+    console.log(`To delete (stale): ${toDelete.length}`)
+  }
+
+  let toDeleteDedupe = []
+  if (shouldDedupe) {
+    const byName = new Map()
+    for (const row of rows || []) {
+      const key = normalizeName(row.name || '')
+      if (!key) continue
+      const list = byName.get(key) || []
+      list.push(row)
+      byName.set(key, list)
+    }
+
+    for (const list of byName.values()) {
+      if (list.length <= 1) continue
+      list.sort((a, b) => {
+        const scoreDiff = scoreDbRow(b) - scoreDbRow(a)
+        if (scoreDiff !== 0) return scoreDiff
+        const aId = String(a.id || '')
+        const bId = String(b.id || '')
+        return aId.localeCompare(bId)
+      })
+      const extras = list.slice(1)
+      toDeleteDedupe.push(...extras)
+    }
+
+    console.log(`To delete (dedupe): ${toDeleteDedupe.length}`)
+  }
+
   if (!shouldConfirm) {
     console.log('Dry-run sample inserts (first 5):')
     console.log(toInsert.slice(0, 5))
     console.log('Dry-run sample updates (first 5):')
     console.log(toUpdate.slice(0, 5))
+    if (shouldPrune) {
+      console.log('Dry-run sample deletes (first 5):')
+      console.log(
+        toDelete.slice(0, 5).map((r) => ({
+          id: r.id,
+          scientific_name: r.scientific_name,
+          name: r.name,
+        }))
+      )
+    }
+    if (shouldDedupe) {
+      console.log('Dry-run sample dedupe deletes (first 5):')
+      console.log(
+        toDeleteDedupe.slice(0, 5).map((r) => ({
+          id: r.id,
+          scientific_name: r.scientific_name,
+          name: r.name,
+        }))
+      )
+    }
     console.log('Run with --confirm to apply.')
     return
   }
@@ -223,6 +346,48 @@ async function run() {
       if (updated % 50 === 0 || updated === toUpdate.length) {
         console.log(`Updated ${updated}/${toUpdate.length}`)
       }
+    }
+  }
+
+  if (shouldPrune && toDelete.length > 0) {
+    const chunkSize = 200
+    let deleted = 0
+    const ids = toDelete.map((r) => r.id)
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize)
+      const { error: deleteError } = await supabase
+        .from(tableName)
+        .delete()
+        .in('id', chunk)
+
+      if (deleteError) {
+        console.error('Delete failed:', deleteError.message)
+        process.exit(1)
+      }
+
+      deleted += chunk.length
+      console.log(`Deleted ${deleted}/${ids.length}`)
+    }
+  }
+
+  if (shouldDedupe && toDeleteDedupe.length > 0) {
+    const chunkSize = 200
+    let deleted = 0
+    const ids = toDeleteDedupe.map((r) => r.id)
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize)
+      const { error: deleteError } = await supabase
+        .from(tableName)
+        .delete()
+        .in('id', chunk)
+
+      if (deleteError) {
+        console.error('Dedupe delete failed:', deleteError.message)
+        process.exit(1)
+      }
+
+      deleted += chunk.length
+      console.log(`Deleted dedupe ${deleted}/${ids.length}`)
     }
   }
 

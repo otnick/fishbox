@@ -2105,7 +2105,6 @@
     "schwierigkeit": 2,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -3480,7 +3479,6 @@
     "schwierigkeit": 2,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -3871,7 +3869,6 @@
     "schwierigkeit": 3,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -5076,8 +5073,6 @@
     "schwierigkeit": 5,
     "name_en": "",
     "region": [
-      "deutschland",
-      "europa",
       "weltweit"
     ]
   },
@@ -6231,7 +6226,6 @@
     "schwierigkeit": 2,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -10111,6 +10105,8 @@
     "schwierigkeit": 3,
     "name_en": "",
     "region": [
+      "deutschland",
+      "europa",
       "weltweit"
     ]
   },
@@ -10886,8 +10882,6 @@
     "schwierigkeit": 2,
     "name_en": "",
     "region": [
-      "deutschland",
-      "europa",
       "weltweit"
     ]
   },
@@ -11982,7 +11976,6 @@
     "schwierigkeit": 3,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -12361,7 +12354,6 @@
     "schwierigkeit": 3,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -13369,7 +13361,6 @@
     "schwierigkeit": 3,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -14056,7 +14047,6 @@
     "schwierigkeit": 2,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]
@@ -14483,7 +14473,6 @@
     "schwierigkeit": 3,
     "name_en": "",
     "region": [
-      "deutschland",
       "europa",
       "weltweit"
     ]

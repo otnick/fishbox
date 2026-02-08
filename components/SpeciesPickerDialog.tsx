@@ -68,8 +68,8 @@ export default function SpeciesPickerDialog({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-3xl w-full p-4 sm:p-6 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/90 z-[45] flex items-end sm:items-center justify-center p-2 sm:p-4">
+      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-3xl w-full p-4 sm:p-6 max-h-[calc(100vh-8.5rem)] sm:max-h-[92vh] overflow-x-hidden overflow-y-auto break-words">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-white">Fischart auswählen</h2>
