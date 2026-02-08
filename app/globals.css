@@ -88,6 +88,34 @@ body {
   animation: catchModalIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+@keyframes catchSubOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes catchSubModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-catchSubOverlayIn {
+  animation: catchSubOverlayIn 0.18s ease-out;
+}
+
+.animate-catchSubModalIn {
+  animation: catchSubModalIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* Mobile optimizations */
 @media (max-width: 768px) {
   /* Prevent zoom on input focus (iOS) */

@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { RefreshCw, Edit3, XCircle, AlertTriangle, Lightbulb } from 'lucide-react'
 
 interface NoDetectionModalProps {
+  embedded?: boolean
   photoPreview: string
   onRetry: () => void
   onManualOverride: () => void
@@ -11,14 +12,27 @@ interface NoDetectionModalProps {
 }
 
 export default function NoDetectionModal({
+  embedded = false,
   photoPreview,
   onRetry,
   onManualOverride,
   onReject,
 }: NoDetectionModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/90 z-[45] flex items-end sm:items-center justify-center p-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:p-4">
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[82dvh] sm:max-h-[90vh] overflow-x-hidden overflow-y-auto break-words">
+    <div
+      className={
+        embedded
+          ? 'absolute inset-0 z-30 bg-black/75 backdrop-blur-sm rounded-2xl p-0 overflow-hidden animate-catchSubOverlayIn'
+          : 'fixed inset-0 bg-black/92 z-[70] flex items-end sm:items-center justify-center p-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:p-4'
+      }
+    >
+      <div
+        className={
+          embedded
+            ? 'bg-ocean/30 backdrop-blur-sm rounded-2xl w-full h-full p-4 sm:p-6 overflow-x-hidden overflow-y-auto overscroll-contain break-words animate-catchSubModalIn'
+            : 'bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[82dvh] sm:max-h-[90vh] overflow-x-hidden overflow-y-auto break-words'
+        }
+      >
         <div className="flex items-center gap-3 mb-6">
           <AlertTriangle className="w-8 h-8 text-red-400" />
           <div>

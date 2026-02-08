@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo, useState } from 'react'
 import { X, Search } from 'lucide-react'
@@ -6,6 +6,7 @@ import type { FishType, WaterType } from '@/lib/utils/fishSpeciesGroups'
 import { getSpeciesTags, normalizeSpeciesName } from '@/lib/utils/fishSpeciesGroups'
 
 interface SpeciesPickerDialogProps {
+  embedded?: boolean
   isOpen: boolean
   species: string[]
   selected?: string
@@ -42,6 +43,7 @@ function matchesType(tags: { type?: FishType } | undefined, filter: TypeFilter) 
 }
 
 export default function SpeciesPickerDialog({
+  embedded = false,
   isOpen,
   species,
   selected,
@@ -68,14 +70,24 @@ export default function SpeciesPickerDialog({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-[45] flex items-end sm:items-center justify-center p-2 sm:p-4">
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-3xl w-full p-4 sm:p-6 max-h-[calc(100vh-8.5rem)] sm:max-h-[92vh] overflow-x-hidden overflow-y-auto break-words">
+    <div
+      className={
+        embedded
+          ? 'absolute inset-0 z-30 bg-black/75 backdrop-blur-sm rounded-2xl p-0 overflow-hidden animate-catchSubOverlayIn'
+          : 'fixed inset-0 bg-black/92 z-[70] flex items-end sm:items-center justify-center p-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:p-4'
+      }
+    >
+      <div
+        className={
+          embedded
+            ? 'bg-ocean/30 backdrop-blur-sm rounded-2xl w-full h-full p-4 sm:p-6 overflow-x-hidden overflow-y-auto overscroll-contain break-words animate-catchSubModalIn'
+            : 'bg-ocean/30 backdrop-blur-sm rounded-xl max-w-3xl w-full p-4 sm:p-6 max-h-[82dvh] sm:max-h-[92vh] overflow-x-hidden overflow-y-auto break-words'
+        }
+      >
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-white">Fischart auswählen</h2>
-            <p className="text-ocean-light text-sm">
-              Filtere zuerst nach Gewässertyp, dann nach Artgruppe
-            </p>
+            <p className="text-ocean-light text-sm">Filtere zuerst nach Gewässertyp, dann nach Artgruppe</p>
           </div>
           <button
             onClick={onClose}
@@ -166,16 +178,15 @@ export default function SpeciesPickerDialog({
             </button>
           ))}
         </div>
+
         {filteredSpecies.length === 0 && (
           <div className="text-ocean-light text-sm bg-ocean-dark/40 rounded-lg p-4 mt-3">
-            Keine Treffer mit den aktuellen Filtern. Setze die Filter zurück oder suche
-            nach einem anderen Begriff.
+            Keine Treffer mit den aktuellen Filtern. Setze die Filter zurück oder suche nach einem anderen Begriff.
           </div>
         )}
 
         <div className="text-ocean-light text-xs mt-4">
-          Hinweis: Einige Arten sind noch nicht kategorisiert und erscheinen nur bei
-          Filter &quot;Alle&quot;.
+          Hinweis: Einige Arten sind noch nicht kategorisiert und erscheinen nur bei Filter &quot;Alle&quot;.
         </div>
       </div>
     </div>

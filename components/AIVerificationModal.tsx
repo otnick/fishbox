@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, AlertCircle, Loader2, PencilLine } from 'lucide-
 import type { FishDetectionResult } from '@/lib/utils/fishDetection'
 
 interface AIVerificationModalProps {
+  embedded?: boolean
   photoPreview: string
   detectionResults: FishDetectionResult[]
   detectionLoading: boolean
@@ -16,6 +17,7 @@ interface AIVerificationModalProps {
 }
 
 export default function AIVerificationModal({
+  embedded = false,
   photoPreview,
   detectionResults,
   detectionLoading,
@@ -41,8 +43,20 @@ export default function AIVerificationModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-[45] flex items-end sm:items-center justify-center p-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:p-4">
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[82dvh] sm:max-h-[92vh] overflow-x-hidden overflow-y-auto break-words">
+    <div
+      className={
+        embedded
+          ? 'absolute inset-0 z-30 bg-black/75 backdrop-blur-sm rounded-2xl p-0 overflow-hidden animate-catchSubOverlayIn'
+          : 'fixed inset-0 bg-black/92 z-[70] flex items-end sm:items-center justify-center p-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:p-4'
+      }
+    >
+      <div
+        className={
+          embedded
+            ? 'bg-ocean/30 backdrop-blur-sm rounded-2xl w-full h-full p-4 sm:p-6 overflow-x-hidden overflow-y-auto overscroll-contain break-words animate-catchSubModalIn'
+            : 'bg-ocean/30 backdrop-blur-sm rounded-xl max-w-2xl w-full p-4 sm:p-6 max-h-[82dvh] sm:max-h-[92vh] overflow-x-hidden overflow-y-auto break-words'
+        }
+      >
         <div className="flex items-start gap-3 mb-5 sm:mb-6">
           <AlertCircle className="w-7 h-7 sm:w-8 sm:h-8 text-ocean-light mt-1" />
           <div>
@@ -124,59 +138,63 @@ export default function AIVerificationModal({
           </>
         )}
 
-        <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4 mb-5 sm:mb-6">
-          <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            Deine Optionen:
-          </h4>
-          <ul className="text-ocean-light text-sm space-y-1">
-            <li className="inline-flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-400" />
-              <span><strong>Bestätigen:</strong> KI-Erkennung wird übernommen → FishDex Unlock</span>
-            </li>
-            <li className="inline-flex items-center gap-2">
-              <PencilLine className="w-4 h-4 text-yellow-400" />
-              <span><strong>Manuell:</strong> Du wählst die Art selbst → Kein FishDex</span>
-            </li>
-            <li className="inline-flex items-center gap-2">
-              <XCircle className="w-4 h-4 text-red-400" />
-              <span><strong>Ablehnen:</strong> Fang wird verworfen (nicht gespeichert)</span>
-            </li>
-          </ul>
-          <p className="text-ocean-light text-xs mt-3 italic">
-            Hinweis: Bei &quot;Bestätigen&quot; wird die Art gesperrt.
-          </p>
-        </div>
+        {!detectionLoading && (
+          <>
+            <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4 mb-5 sm:mb-6">
+              <h4 className="text-white font-semibold mb-2 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Deine Optionen:
+              </h4>
+              <ul className="text-ocean-light text-sm space-y-1">
+                <li className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-400" />
+                  <span><strong>Bestätigen:</strong> KI-Erkennung wird übernommen → FishDex Unlock</span>
+                </li>
+                <li className="inline-flex items-center gap-2">
+                  <PencilLine className="w-4 h-4 text-yellow-400" />
+                  <span><strong>Manuell:</strong> Du wählst die Art selbst → Kein FishDex</span>
+                </li>
+                <li className="inline-flex items-center gap-2">
+                  <XCircle className="w-4 h-4 text-red-400" />
+                  <span><strong>Ablehnen:</strong> Fang wird verworfen (nicht gespeichert)</span>
+                </li>
+              </ul>
+              <p className="text-ocean-light text-xs mt-3 italic">
+                Hinweis: Bei &quot;Bestätigen&quot; wird die Art gesperrt.
+              </p>
+            </div>
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => selectedSpecies && onConfirm(selectedSpecies)}
-              disabled={!selectedSpecies || detectionLoading}
-              className="flex-1 bg-green-900/30 hover:bg-green-900/50 text-green-400 font-semibold py-4 px-5 rounded-lg transition-colors disabled:opacity-50 flex flex-col items-center justify-center gap-2 group"
-            >
-              <CheckCircle2 className="w-8 h-8 group-hover:scale-110 transition-transform" />
-              <span className="text-sm">Bestätigen</span>
-              <span className="text-xs text-green-300/70">FishDex Unlock</span>
-            </button>
-            <button
-              onClick={onManualOverride}
-              className="flex-1 bg-yellow-900/30 hover:bg-yellow-900/50 text-yellow-400 font-semibold py-4 px-5 rounded-lg transition-colors flex flex-col items-center justify-center gap-2 group"
-            >
-              <AlertCircle className="w-8 h-8 group-hover:scale-110 transition-transform" />
-              <span className="text-sm">Manuell</span>
-              <span className="text-xs text-yellow-300/70">Kein FishDex</span>
-            </button>
-            <button
-              onClick={onReject}
-              className="flex-1 bg-red-900/30 hover:bg-red-900/50 text-red-400 font-semibold py-4 px-5 rounded-lg transition-colors flex flex-col items-center justify-center gap-2 group"
-            >
-              <XCircle className="w-8 h-8 group-hover:scale-110 transition-transform" />
-              <span className="text-sm">Ablehnen</span>
-              <span className="text-xs text-red-300/70">Verwerfen</span>
-            </button>
-          </div>
-        </div>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => selectedSpecies && onConfirm(selectedSpecies)}
+                  disabled={!selectedSpecies || detectionLoading}
+                  className="flex-1 bg-green-900/30 hover:bg-green-900/50 text-green-400 font-semibold py-4 px-5 rounded-lg transition-colors disabled:opacity-50 flex flex-col items-center justify-center gap-2 group"
+                >
+                  <CheckCircle2 className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm">Bestätigen</span>
+                  <span className="text-xs text-green-300/70">FishDex Unlock</span>
+                </button>
+                <button
+                  onClick={onManualOverride}
+                  className="flex-1 bg-yellow-900/30 hover:bg-yellow-900/50 text-yellow-400 font-semibold py-4 px-5 rounded-lg transition-colors flex flex-col items-center justify-center gap-2 group"
+                >
+                  <AlertCircle className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm">Manuell</span>
+                  <span className="text-xs text-yellow-300/70">Kein FishDex</span>
+                </button>
+                <button
+                  onClick={onReject}
+                  className="flex-1 bg-red-900/30 hover:bg-red-900/50 text-red-400 font-semibold py-4 px-5 rounded-lg transition-colors flex flex-col items-center justify-center gap-2 group"
+                >
+                  <XCircle className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm">Ablehnen</span>
+                  <span className="text-xs text-red-300/70">Verwerfen</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -34,11 +34,12 @@ import type { FishSpecies, Achievement } from '@/lib/types/fishdex'
 
 interface CatchFormProps {
   onSuccess: () => void
+  embeddedFlow?: boolean
 }
 
 const FISH_SPECIES = Array.from(new Set([...ALL_GERMAN_SPECIES, 'Andere']))
 
-export default function CatchForm({ onSuccess }: CatchFormProps) {
+export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchFormProps) {
   const addCatch = useCatchStore((state) => state.addCatch)
   const user = useCatchStore((state) => state.user)
   
@@ -73,6 +74,14 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
   const [manualMode, setManualMode] = useState(false)
   const [aiVerified, setAIVerified] = useState(false)
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false)
+  const isSubModalOpen = showAIVerification || showNoDetection || showSpeciesPicker
+  const isOverlayActive = aiDetectionLoading || isSubModalOpen
+
+  const closeSubModals = () => {
+    setShowAIVerification(false)
+    setShowNoDetection(false)
+    setShowSpeciesPicker(false)
+  }
 
   // Debug: Watch newDiscovery changes
   useEffect(() => {
@@ -88,9 +97,28 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
     }
   }, [manualMode, aiVerified, formData.species])
 
+  useEffect(() => {
+    if (!embeddedFlow || !isOverlayActive) return
+    const sheet = document.querySelector<HTMLElement>('[data-catch-modal-sheet="true"]')
+    if (!sheet) return
+    const originalOverflow = sheet.style.overflowY
+    const originalOverscroll = sheet.style.overscrollBehavior
+    sheet.style.overflowY = 'hidden'
+    sheet.style.overscrollBehavior = 'none'
+    return () => {
+      sheet.style.overflowY = originalOverflow
+      sheet.style.overscrollBehavior = originalOverscroll
+    }
+  }, [embeddedFlow, isOverlayActive])
+
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      if (embeddedFlow) {
+        const sheet = document.querySelector<HTMLElement>('[data-catch-modal-sheet="true"]')
+        sheet?.scrollTo({ top: 0, behavior: 'auto' })
+      }
+
       setPhoto(file)
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -100,6 +128,9 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
 
       // Run AI detection
       console.log('Starting AI detection...')
+      closeSubModals()
+      setAIDetectionResults([])
+      setShowAIVerification(true)
       setAIDetectionLoading(true)
       try {
         const results = await detectFishSpecies(file)
@@ -111,10 +142,12 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
           console.log('Fish detected. Showing verification modal')
         } else {
           console.log('No fish detected. Showing NoDetectionModal')
+          setShowAIVerification(false)
           setShowNoDetection(true)
         }
       } catch (error) {
         console.error('AI detection failed:', error)
+        setShowAIVerification(false)
         setShowNoDetection(true)
       } finally {
         setAIDetectionLoading(false)
@@ -351,6 +384,7 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
       {/* AI Verification Modal */}
       {showAIVerification && photoPreview && (
         <AIVerificationModal
+          embedded={embeddedFlow}
           photoPreview={photoPreview}
           detectionResults={aiDetectionResults}
           detectionLoading={aiDetectionLoading}
@@ -359,11 +393,11 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
             const mappedSpecies = mapSpeciesToDatabase(species)
             setFormData({ ...formData, species: mappedSpecies })
             setAIVerified(true)
-            setShowAIVerification(false)
+            closeSubModals()
           }}
           onReject={() => {
             console.log('User rejected catch. Discarding')
-            setShowAIVerification(false)
+            closeSubModals()
             setPhoto(null)
             setPhotoPreview(null)
             setManualMode(false)
@@ -378,12 +412,12 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
                 const results = await detectFishSpecies(photo)
                 setAIDetectionResults(results.results || [])
                 if (results.detections === 0) {
-                  setShowAIVerification(false)
+                  closeSubModals()
                   setShowNoDetection(true)
                 }
               } catch (error) {
                 console.error('Retry failed:', error)
-                setShowAIVerification(false)
+                closeSubModals()
                 setShowNoDetection(true)
               } finally {
                 setAIDetectionLoading(false)
@@ -392,7 +426,7 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
           }}
           onManualOverride={() => {
             console.log('User chose manual mode from verification')
-            setShowAIVerification(false)
+            closeSubModals()
             setManualMode(true)
             setAIVerified(false)
           }}
@@ -402,22 +436,26 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
       {/* No Detection Modal */}
       {showNoDetection && photoPreview && (
         <NoDetectionModal
+          embedded={embeddedFlow}
           photoPreview={photoPreview}
           onRetry={async () => {
             console.log('Retrying AI detection from NoDetectionModal...')
             if (photo) {
-              setShowNoDetection(false)
+              closeSubModals()
               setAIDetectionLoading(true)
               try {
                 const results = await detectFishSpecies(photo)
                 if (results.detections > 0 && results.results.length > 0) {
+                  closeSubModals()
                   setAIDetectionResults(results.results)
                   setShowAIVerification(true)
                 } else {
+                  closeSubModals()
                   setShowNoDetection(true)
                 }
               } catch (error) {
                 console.error('Retry failed:', error)
+                closeSubModals()
                 setShowNoDetection(true)
               } finally {
                 setAIDetectionLoading(false)
@@ -426,13 +464,13 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
           }}
           onManualOverride={() => {
             console.log('User chose manual mode from NoDetectionModal')
-            setShowNoDetection(false)
+            closeSubModals()
             setManualMode(true)
             setAIVerified(false)
           }}
           onReject={() => {
             console.log('User rejected from NoDetectionModal. Discarding')
-            setShowNoDetection(false)
+            closeSubModals()
             setPhoto(null)
             setPhotoPreview(null)
             setManualMode(false)
@@ -455,14 +493,18 @@ export default function CatchForm({ onSuccess }: CatchFormProps) {
 
       {/* Species Picker Dialog */}
       <SpeciesPickerDialog
+        embedded={embeddedFlow}
         isOpen={showSpeciesPicker}
         species={FISH_SPECIES}
         selected={formData.species}
         onSelect={(species) => setFormData({ ...formData, species })}
-        onClose={() => setShowSpeciesPicker(false)}
+        onClose={closeSubModals}
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form
+        onSubmit={handleSubmit}
+        className={`space-y-6 transition-all duration-200 ${isSubModalOpen ? 'pointer-events-none opacity-30 scale-[0.985]' : 'pointer-events-auto opacity-100 scale-100'}`}
+      >
       {/* Photo Upload */}
       <div>
         <label className="block text-ocean-light text-sm mb-2">
