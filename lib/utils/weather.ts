@@ -10,6 +10,70 @@ export interface WeatherData {
   icon: string // Weather icon emoji
 }
 
+const HOURLY_FIELDS =
+  'temperature_2m,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_10m,weather_code'
+
+function toDateParam(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
+function getClosestTimeIndex(times: string[], targetDate: Date): number {
+  if (!times.length) return -1
+  const targetTs = targetDate.getTime()
+  let bestIndex = 0
+  let bestDelta = Number.POSITIVE_INFINITY
+
+  for (let i = 0; i < times.length; i++) {
+    const ts = new Date(times[i]).getTime()
+    if (Number.isNaN(ts)) continue
+    const delta = Math.abs(ts - targetTs)
+    if (delta < bestDelta) {
+      bestDelta = delta
+      bestIndex = i
+    }
+  }
+
+  return bestDelta === Number.POSITIVE_INFINITY ? -1 : bestIndex
+}
+
+async function fetchHourlyWeather(
+  endpoint: 'forecast' | 'archive',
+  coordinates: Coordinates,
+  targetDate: Date
+): Promise<WeatherData | null> {
+  const dateStr = toDateParam(targetDate)
+  const url = new URL(`https://api.open-meteo.com/v1/${endpoint}`)
+  url.searchParams.append('latitude', coordinates.lat.toString())
+  url.searchParams.append('longitude', coordinates.lng.toString())
+  url.searchParams.append('hourly', HOURLY_FIELDS)
+  url.searchParams.append('timezone', 'auto')
+  url.searchParams.append('start_date', dateStr)
+  url.searchParams.append('end_date', dateStr)
+
+  const response = await fetch(url.toString())
+  if (!response.ok) return null
+
+  const data = await response.json()
+  const hourly = data.hourly
+  if (!hourly?.time?.length) return null
+
+  const timeIndex = getClosestTimeIndex(hourly.time, targetDate)
+  if (timeIndex < 0) return null
+
+  const weatherCode = hourly.weather_code[timeIndex]
+  const { description, icon } = getWeatherDescription(weatherCode)
+
+  return {
+    temperature: Math.round(hourly.temperature_2m[timeIndex]),
+    windSpeed: Math.round(hourly.wind_speed_10m[timeIndex]),
+    windDirection: Math.round(hourly.wind_direction_10m[timeIndex]),
+    pressure: Math.round(hourly.pressure_msl[timeIndex]),
+    humidity: Math.round(hourly.relative_humidity_2m[timeIndex]),
+    description,
+    icon,
+  }
+}
+
 /**
  * Get weather data for specific coordinates and time
  * Uses Open-Meteo API (free, no API key needed!)
@@ -23,48 +87,15 @@ export async function getWeatherData(
 ): Promise<WeatherData | null> {
   try {
     const targetDate = date || new Date()
-    const dateStr = targetDate.toISOString().split('T')[0]
-    
-    // Open-Meteo API (completely free!)
-    const url = new URL('https://api.open-meteo.com/v1/forecast')
-    url.searchParams.append('latitude', coordinates.lat.toString())
-    url.searchParams.append('longitude', coordinates.lng.toString())
-    url.searchParams.append('hourly', 'temperature_2m,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_10m,weather_code')
-    url.searchParams.append('timezone', 'auto')
-    url.searchParams.append('start_date', dateStr)
-    url.searchParams.append('end_date', dateStr)
+    const now = new Date()
+    const isPast = targetDate.getTime() < now.getTime() - 60 * 60 * 1000
 
-    const response = await fetch(url.toString())
-    if (!response.ok) return null
-
-    const data = await response.json()
-    
-    // Get the closest hour
-    const targetHour = targetDate.getHours()
-    const hourlyData = data.hourly
-    
-    if (!hourlyData || !hourlyData.time) return null
-
-    // Find closest time index
-    const timeIndex = hourlyData.time.findIndex((t: string) => {
-      const hour = new Date(t).getHours()
-      return hour === targetHour
-    })
-
-    if (timeIndex === -1) return null
-
-    const weatherCode = hourlyData.weather_code[timeIndex]
-    const { description, icon } = getWeatherDescription(weatherCode)
-
-    return {
-      temperature: Math.round(hourlyData.temperature_2m[timeIndex]),
-      windSpeed: Math.round(hourlyData.wind_speed_10m[timeIndex]),
-      windDirection: Math.round(hourlyData.wind_direction_10m[timeIndex]),
-      pressure: Math.round(hourlyData.pressure_msl[timeIndex]),
-      humidity: Math.round(hourlyData.relative_humidity_2m[timeIndex]),
-      description,
-      icon,
+    if (isPast) {
+      const archiveWeather = await fetchHourlyWeather('archive', coordinates, targetDate)
+      if (archiveWeather) return archiveWeather
     }
+
+    return await fetchHourlyWeather('forecast', coordinates, targetDate)
   } catch (error) {
     console.error('Error fetching weather data:', error)
     return null

@@ -18,8 +18,8 @@ import { useCatchStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase'
 import { uploadPhoto, compressImage } from '@/lib/utils/photoUpload'
 import { getCurrentPosition, getLocationName, formatCoordinates } from '@/lib/utils/geolocation'
-import { getCurrentWeather } from '@/lib/utils/weather'
-import { extractCoordinatesFromImage } from '@/lib/utils/exifGps'
+import { getWeatherData } from '@/lib/utils/weather'
+import { extractExifMetadataFromImage } from '@/lib/utils/exifGps'
 import {
   ALL_GERMAN_SPECIES,
   detectFishSpecies,
@@ -39,6 +39,11 @@ interface CatchFormProps {
 }
 
 const FISH_SPECIES = Array.from(new Set([...ALL_GERMAN_SPECIES, 'Andere']))
+
+function toDateTimeLocalValue(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchFormProps) {
   const addCatch = useCatchStore((state) => state.addCatch)
@@ -76,6 +81,7 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
   const [manualMode, setManualMode] = useState(false)
   const [aiVerified, setAIVerified] = useState(false)
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false)
+  const [dateManuallySet, setDateManuallySet] = useState(false)
   const isSubModalOpen = showAIVerification || showNoDetection || showSpeciesPicker
   const isOverlayActive = aiDetectionLoading || isSubModalOpen
 
@@ -136,21 +142,27 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
 
       // Try reading GPS EXIF metadata from image in parallel.
       void (async () => {
-        const photoCoordinates = await extractCoordinatesFromImage(file)
-        if (!photoCoordinates) return
+        const metadata = await extractExifMetadataFromImage(file)
 
-        setCoordinates(photoCoordinates)
-
-        const [locationName, weatherData] = await Promise.all([
-          getLocationName(photoCoordinates),
-          getCurrentWeather(photoCoordinates),
-        ])
-
-        if (locationName) {
-          setFormData((prev) => ({ ...prev, location: locationName }))
+        if (metadata.capturedAt && !dateManuallySet) {
+          setFormData((prev) => ({ ...prev, date: toDateTimeLocalValue(metadata.capturedAt as Date) }))
         }
-        if (weatherData) {
-          setWeather(weatherData)
+
+        if (metadata.coordinates) {
+          setCoordinates(metadata.coordinates)
+
+          const targetDate = metadata.capturedAt || (formData.date ? new Date(formData.date) : new Date())
+          const [locationName, weatherData] = await Promise.all([
+            getLocationName(metadata.coordinates),
+            getWeatherData(metadata.coordinates, targetDate),
+          ])
+
+          if (locationName) {
+            setFormData((prev) => ({ ...prev, location: locationName }))
+          }
+          if (weatherData) {
+            setWeather(weatherData)
+          }
         }
       })()
 
@@ -193,7 +205,8 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
         const locationName = await getLocationName(position)
         setFormData(prev => ({ ...prev, location: locationName || '' }))
 
-        const weatherData = await getCurrentWeather(position)
+        const targetDate = formData.date ? new Date(formData.date) : new Date()
+        const weatherData = await getWeatherData(position, targetDate)
         setWeather(weatherData)
       }
     } catch (error) {
@@ -204,7 +217,7 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
     }
   }
 
-  const getWeatherData = async () => {
+  const loadWeatherData = async () => {
     if (!coordinates) {
       alert('Bitte zuerst Standort aktivieren')
       return
@@ -212,7 +225,8 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
 
     setFetchingWeather(true)
     try {
-      const weatherData = await getCurrentWeather(coordinates)
+      const targetDate = formData.date ? new Date(formData.date) : new Date()
+      const weatherData = await getWeatherData(coordinates, targetDate)
       setWeather(weatherData)
     } catch (error) {
       console.error('Weather error:', error)
@@ -310,6 +324,7 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
         date: new Date().toISOString().slice(0, 16),
         isPublic: false, // Reset to private
       })
+      setDateManuallySet(false)
       setPhoto(null)
       setPhotoPreview(null)
       setCoordinates(null)
@@ -724,7 +739,10 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
         <input
           type="datetime-local"
           value={formData.date}
-          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+          onChange={(e) => {
+            setDateManuallySet(true)
+            setFormData({ ...formData, date: e.target.value })
+          }}
           className="w-full px-4 py-2 rounded-lg bg-ocean-dark text-white border border-ocean-light/30 focus:border-ocean-light focus:outline-none"
         />
       </div>
@@ -766,7 +784,7 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
         <div>
           <button
             type="button"
-            onClick={getWeatherData}
+            onClick={loadWeatherData}
             disabled={fetchingWeather}
             className="text-ocean-light hover:text-white text-sm transition-colors"
           >
