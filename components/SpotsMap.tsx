@@ -1,16 +1,17 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo } from 'react'
-import Link from 'next/link'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.heat'
+import 'leaflet.markercluster'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import L from 'leaflet'
 import type { Catch } from '@/lib/store'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 
-// Fix default marker icon issue in Next.js
 const icon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -26,22 +27,23 @@ interface SpotsMapProps {
   selectedSpot?: { lat: number; lng: number } | null
   selectedZoom?: number
   showHeatmap?: boolean
+  clustered?: boolean
 }
 
 function FitBounds({ catches, disabled }: { catches: Catch[]; disabled?: boolean }) {
   const map = useMap()
-  
+
   useEffect(() => {
     if (!disabled && catches.length > 0) {
       const bounds = L.latLngBounds(
         catches
-          .filter(c => c.coordinates)
-          .map(c => [c.coordinates!.lat, c.coordinates!.lng] as [number, number])
+          .filter((c) => c.coordinates)
+          .map((c) => [c.coordinates!.lat, c.coordinates!.lng] as [number, number])
       )
       map.fitBounds(bounds, { padding: [50, 50] })
     }
   }, [catches, map, disabled])
-  
+
   return null
 }
 
@@ -56,7 +58,7 @@ function ZoomToSpot({
 
   useEffect(() => {
     if (!spot) return
-    map.flyTo([spot.lat, spot.lng], zoom ? zoom : 15, { duration: 0.6 })
+    map.flyTo([spot.lat, spot.lng], zoom || 15, { duration: 0.6 })
   }, [map, spot, zoom])
 
   return null
@@ -75,8 +77,8 @@ function HeatmapLayer({
     if (!enabled || catches.length === 0) return
 
     const points: Array<[number, number, number]> = catches
-      .filter(c => c.coordinates)
-      .map(c => {
+      .filter((c) => c.coordinates)
+      .map((c) => {
         const weight = c.length ? Math.min(3, Math.max(1, c.length / 50)) : 1
         return [c.coordinates!.lat, c.coordinates!.lng, weight]
       })
@@ -100,68 +102,127 @@ function HeatmapLayer({
   return null
 }
 
-export default function SpotsMap({
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function ClusteredMarkers({
   catches,
-  selectedSpot,
-  selectedZoom,
-  showHeatmap,
-}: SpotsMapProps) {
-  // Group catches by location
+  enabled,
+}: {
+  catches: Catch[]
+  enabled?: boolean
+}) {
+  const map = useMap()
+
   const groupedSpots = useMemo(() => {
     const spots = new Map<string, Catch[]>()
 
-    catches.forEach(c => {
+    catches.forEach((c) => {
       if (!c.coordinates) return
       const key = `${c.coordinates.lat.toFixed(5)},${c.coordinates.lng.toFixed(5)}`
-      if (!spots.has(key)) {
-        spots.set(key, [])
-      }
+      if (!spots.has(key)) spots.set(key, [])
       spots.get(key)!.push(c)
     })
 
-    return Array.from(spots.entries()).map(([key, catchList]) => ({
+    return Array.from(spots.values()).map((catchList) => ({
       coordinates: catchList[0].coordinates!,
       catches: catchList,
       location: catchList[0].location || 'Unbekannt',
     }))
   }, [catches])
 
+  useEffect(() => {
+    if (!enabled) return
+
+    const clusterLayer = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      maxClusterRadius: 48,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount()
+        const level = count < 10 ? 'small' : count < 30 ? 'medium' : 'large'
+        const size = count < 10 ? 42 : count < 30 ? 50 : 58
+        return L.divIcon({
+          html: `<div class="fishbox-cluster fishbox-cluster--${level}"><span>${count}</span></div>`,
+          className: 'fishbox-cluster-wrap',
+          iconSize: L.point(size, size),
+        })
+      },
+    })
+
+    groupedSpots.forEach((spot) => {
+      const sortedByDate = [...spot.catches].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      )
+      const topSpecies = Array.from(new Set(sortedByDate.map((c) => c.species))).slice(0, 3)
+      const latest = sortedByDate[0]
+      const verifiedCount = spot.catches.filter((c) => c.ai_verified || c.verification_status === 'verified').length
+      const daysSinceLast = latest ? Math.floor((Date.now() - new Date(latest.date).getTime()) / (1000 * 60 * 60 * 24)) : 999
+      const countScore = Math.min(35, spot.catches.length * 5)
+      const speciesScore = Math.min(25, topSpecies.length * 8)
+      const verifyScore = Math.round((verifiedCount / Math.max(1, spot.catches.length)) * 25)
+      const recencyScore = daysSinceLast <= 7 ? 15 : daysSinceLast <= 30 ? 11 : daysSinceLast <= 90 ? 7 : 3
+      const qualityScore = Math.min(100, countScore + speciesScore + verifyScore + recencyScore)
+      const addCatchHref = `/catches?new=1&lat=${spot.coordinates.lat}&lng=${spot.coordinates.lng}&location=${encodeURIComponent(spot.location)}`
+      const rows = sortedByDate
+        .slice(0, 3)
+        .map((c) => {
+          const date = format(new Date(c.date), 'dd.MM.yyyy', { locale: de })
+          return `<div style="padding:6px 0;border-top:1px solid #e5e7eb;">
+            <div style="font-weight:600;">${escapeHtml(c.species)} • ${c.length} cm</div>
+            <div style="font-size:12px;color:#4b5563;">${date}${c.bait ? ` • Köder: ${escapeHtml(c.bait)}` : ''}</div>
+            <a href="/catch/${c.id}" style="font-size:12px;color:#1d4ed8;font-weight:600;">Details</a>
+          </div>`
+        })
+        .join('')
+
+      const popupHtml = `
+        <div style="min-width:240px;max-width:280px;">
+          <div style="font-size:16px;font-weight:700;margin-bottom:6px;">${escapeHtml(spot.location)}</div>
+          <div style="font-size:13px;color:#4b5563;margin-bottom:8px;">${spot.catches.length} Fänge hier</div>
+          <div style="font-size:12px;margin-bottom:8px;">
+            <strong>Qualität:</strong> ${qualityScore}/100<br/>
+            <strong>Letzter Fang:</strong> ${latest ? `${escapeHtml(latest.species)} • ${format(new Date(latest.date), 'dd.MM.yyyy', { locale: de })}` : '-'}<br/>
+            <strong>Top Arten:</strong> ${topSpecies.map((s) => escapeHtml(s)).join(', ') || '-'}
+          </div>
+          ${rows}
+          ${spot.catches.length > 3 ? `<div style="font-size:12px;color:#6b7280;margin-top:6px;">...und ${spot.catches.length - 3} weitere</div>` : ''}
+          <a href="${addCatchHref}" style="display:inline-block;margin-top:8px;font-size:12px;color:#1d4ed8;font-weight:700;">+ Fang hier eintragen</a>
+        </div>
+      `
+
+      const marker = L.marker([spot.coordinates.lat, spot.coordinates.lng], { icon })
+      marker.bindPopup(popupHtml)
+      clusterLayer.addLayer(marker)
+    })
+
+    clusterLayer.addTo(map)
+    return () => {
+      map.removeLayer(clusterLayer)
+    }
+  }, [groupedSpots, enabled, map])
+
+  return null
+}
+
+export default function SpotsMap({
+  catches,
+  selectedSpot,
+  selectedZoom,
+  showHeatmap,
+  clustered = true,
+}: SpotsMapProps) {
   const center = useMemo(() => {
     if (catches.length === 0) return [52.52, 13.405] as [number, number]
     const firstCatch = catches[0]
     return [firstCatch.coordinates!.lat, firstCatch.coordinates!.lng] as [number, number]
   }, [catches])
-
-  const formatWeight = (weight?: number) => {
-    if (!weight) return null
-    return weight > 1000 ? `${(weight / 1000).toFixed(2)} kg` : `${weight} g`
-  }
-
-  const getSpotSummary = (spotCatches: Catch[]) => {
-    const sortedByDate = [...spotCatches].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
-    const lastCatch = sortedByDate[0]
-    const biggestCatch = [...spotCatches].sort((a, b) => b.length - a.length)[0]
-    const photosCount = spotCatches.filter(c => c.photo).length
-
-    const speciesCounts = new Map<string, number>()
-    spotCatches.forEach(c => {
-      speciesCounts.set(c.species, (speciesCounts.get(c.species) || 0) + 1)
-    })
-
-    const topSpecies = Array.from(speciesCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([species]) => species)
-
-    return {
-      lastCatch,
-      biggestCatch,
-      photosCount,
-      topSpecies,
-    }
-  }
 
   return (
     <div style={{ height: '600px', width: '100%' }}>
@@ -175,96 +236,7 @@ export default function SpotsMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
-        {!showHeatmap &&
-          groupedSpots.map((spot, index) => {
-            const summary = getSpotSummary(spot.catches)
-
-            return (
-              <Marker
-                key={index}
-                position={[spot.coordinates.lat, spot.coordinates.lng]}
-                icon={icon}
-              >
-                <Popup>
-                  <div className="p-2 min-w-[240px]">
-                    <div className="font-bold text-lg mb-2">{spot.location}</div>
-                    <div className="text-sm text-gray-600 mb-3">
-                      {spot.catches.length} Fänge hier
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-                      <div className="rounded-md bg-slate-50/80 p-2">
-                        <div className="text-gray-500">Letzter Fang</div>
-                        <div className="font-semibold">
-                          {summary.lastCatch
-                            ? `${summary.lastCatch.species} • ${format(
-                                new Date(summary.lastCatch.date),
-                                'dd.MM.yyyy',
-                                { locale: de }
-                              )}`
-                            : '-'}
-                        </div>
-                      </div>
-                      <div className="rounded-md bg-slate-50/80 p-2">
-                        <div className="text-gray-500">Größter Fang</div>
-                        <div className="font-semibold">
-                          {summary.biggestCatch
-                            ? `${summary.biggestCatch.species} • ${summary.biggestCatch.length} cm`
-                            : '-'}
-                        </div>
-                      </div>
-                      <div className="rounded-md bg-slate-50/80 p-2">
-                        <div className="text-gray-500">Fotos</div>
-                        <div className="font-semibold">{summary.photosCount}</div>
-                      </div>
-                      <div className="rounded-md bg-slate-50/80 p-2">
-                        <div className="text-gray-500">Top Arten</div>
-                        <div className="font-semibold">
-                          {summary.topSpecies.length > 0
-                            ? summary.topSpecies.join(', ')
-                            : '-'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {spot.catches.slice(0, 5).map((c, i) => (
-                        <div key={i} className="rounded-md bg-slate-50/80 p-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-sm font-semibold">
-                              {c.species} • {c.length} cm
-                              {formatWeight(c.weight) ? ` • ${formatWeight(c.weight)}` : ''}
-                            </div>
-                            <Link
-                              href={`/catch/${c.id}`}
-                              className="text-xs font-semibold text-ocean hover:text-ocean-light transition-colors"
-                            >
-                              Details
-                            </Link>
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {format(new Date(c.date), 'dd.MM.yyyy', { locale: de })}
-                            {c.bait ? ` • Köder: ${c.bait}` : ''}
-                          </div>
-                          {c.notes && (
-                            <div className="text-xs text-gray-500 mt-1 line-clamp-2">
-                              {c.notes}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {spot.catches.length > 5 && (
-                        <div className="text-xs text-gray-500">
-                          ...und {spot.catches.length - 5} weitere
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            )
-          })}
+        <ClusteredMarkers catches={catches} enabled={!showHeatmap && clustered} />
 
         <FitBounds catches={catches} disabled={!!selectedSpot} />
         <ZoomToSpot spot={selectedSpot} zoom={selectedZoom} />

@@ -1,17 +1,35 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import CatchForm from '@/components/CatchForm'
 import CatchList from '@/components/CatchList'
 import { useCatchStore } from '@/lib/store'
 import { Fish } from 'lucide-react'
+import type { Coordinates } from '@/lib/utils/geolocation'
 
 export default function CatchesPage() {
+  const searchParams = useSearchParams()
   const [showForm, setShowForm] = useState(false)
+  const [dismissPrefillOpen, setDismissPrefillOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterSpecies, setFilterSpecies] = useState('all')
   const [sortBy, setSortBy] = useState<'date' | 'length' | 'weight'>('date')
   const catches = useCatchStore((state) => state.catches)
+
+  const prefill = useMemo(() => {
+    const latRaw = searchParams.get('lat')
+    const lngRaw = searchParams.get('lng')
+    const location = searchParams.get('location') || ''
+    const autoOpen = searchParams.get('new') === '1'
+
+    const lat = latRaw ? parseFloat(latRaw) : NaN
+    const lng = lngRaw ? parseFloat(lngRaw) : NaN
+    const coordinates: Coordinates | null =
+      Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null
+
+    return { autoOpen, coordinates, location }
+  }, [searchParams])
 
   // Get unique species for filter
   const species = useMemo(() => {
@@ -52,6 +70,8 @@ export default function CatchesPage() {
     return filtered
   }, [catches, searchTerm, filterSpecies, sortBy])
 
+  const effectiveShowForm = showForm || (prefill.autoOpen && !dismissPrefillOpen)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -64,7 +84,14 @@ export default function CatchesPage() {
           <p className="text-ocean-light mt-1">{catches.length} Fänge insgesamt</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (effectiveShowForm) {
+              setShowForm(false)
+              setDismissPrefillOpen(true)
+              return
+            }
+            setShowForm(true)
+          }}
           className="w-full sm:w-auto bg-ocean hover:bg-ocean-light text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg"
         >
           {showForm ? 'Abbrechen' : '+ Neuer Fang'}
@@ -72,14 +99,18 @@ export default function CatchesPage() {
       </div>
 
       {/* Add Catch Form */}
-      {showForm && (
+      {effectiveShowForm && (
         <div className="animate-fadeIn">
-          <CatchForm onSuccess={() => setShowForm(false)} />
+          <CatchForm
+            onSuccess={() => setShowForm(false)}
+            initialCoordinates={prefill.coordinates}
+            initialLocation={prefill.location}
+          />
         </div>
       )}
 
       {/* Filters */}
-      {!showForm && catches.length > 0 && (
+      {!effectiveShowForm && catches.length > 0 && (
         <div className="bg-ocean/30 backdrop-blur-sm rounded-lg p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
@@ -145,7 +176,7 @@ export default function CatchesPage() {
       )}
 
       {/* Catch List */}
-      {!showForm && (
+      {!effectiveShowForm && (
         <div>
           <CatchList catches={filteredCatches} />
         </div>

@@ -36,6 +36,8 @@ import type { FishSpecies, Achievement } from '@/lib/types/fishdex'
 interface CatchFormProps {
   onSuccess: () => void
   embeddedFlow?: boolean
+  initialCoordinates?: Coordinates | null
+  initialLocation?: string
 }
 
 const FISH_SPECIES = Array.from(new Set([...ALL_GERMAN_SPECIES, 'Andere']))
@@ -57,7 +59,12 @@ function getWeatherSourceClass(source?: 'historical' | 'forecast' | 'current'): 
   return 'text-sky-300'
 }
 
-export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchFormProps) {
+export default function CatchForm({
+  onSuccess,
+  embeddedFlow = false,
+  initialCoordinates = null,
+  initialLocation = '',
+}: CatchFormProps) {
   const addCatch = useCatchStore((state) => state.addCatch)
   const user = useCatchStore((state) => state.user)
   const setAiAnalyzing = useCatchStore((state) => state.setAiAnalyzing)
@@ -130,6 +137,19 @@ export default function CatchForm({ onSuccess, embeddedFlow = false }: CatchForm
       sheet.style.overscrollBehavior = originalOverscroll
     }
   }, [embeddedFlow, isOverlayActive])
+
+  useEffect(() => {
+    if (!initialCoordinates) return
+    setCoordinates(initialCoordinates)
+    if (initialLocation) {
+      setFormData((prev) => ({ ...prev, location: initialLocation }))
+    }
+
+    const targetDate = formData.date ? new Date(formData.date) : new Date()
+    void getWeatherData(initialCoordinates, targetDate).then((weatherData) => {
+      if (weatherData) setWeather(weatherData)
+    })
+  }, [initialCoordinates, initialLocation, formData.date])
 
   useEffect(() => {
     if (!embeddedFlow) return

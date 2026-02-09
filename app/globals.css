@@ -44,6 +44,43 @@ body {
   z-index: 1000 !important;
 }
 
+/* Fishbox cluster styles */
+.fishbox-cluster-wrap {
+  background: transparent;
+  border: 0;
+}
+
+.fishbox-cluster {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  border: 2px solid rgba(230, 244, 255, 0.9);
+  box-shadow: 0 10px 26px rgba(15, 35, 51, 0.48);
+}
+
+.fishbox-cluster--small {
+  background: radial-gradient(circle at 28% 28%, #6fb1ff 0%, #4a90e2 45%, #2c5f8d 100%);
+}
+
+.fishbox-cluster--medium {
+  background: radial-gradient(circle at 28% 28%, #4a90e2 0%, #2c5f8d 55%, #1a3a52 100%);
+}
+
+.fishbox-cluster--large {
+  background: radial-gradient(circle at 28% 28%, #2c5f8d 0%, #1a3a52 58%, #0f2333 100%);
+}
+
+.fishbox-cluster span {
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(6, 17, 26, 0.55);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {
