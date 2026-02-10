@@ -66,7 +66,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed top-4 left-4 right-4 sm:top-auto sm:bottom-4 sm:left-auto sm:right-4 z-[70] flex flex-col gap-2">
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm sm:top-auto sm:bottom-4 sm:left-auto sm:right-4 sm:translate-x-0 sm:w-auto z-[70] flex flex-col gap-2">
         {toasts.map((t) => {
           const Icon = ICONS[t.type]
           return (
@@ -80,9 +80,9 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
                     : 'bg-ocean/30 border-ocean-light/20 text-white'
               }`}
             >
-              <div className="flex items-start gap-2">
+              <div className="flex items-center gap-2">
                 <div
-                  className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border ${
+                  className={`flex h-6 w-6 items-center justify-center rounded-full border ${
                     t.type === 'success'
                       ? 'border-emerald-300/50 bg-emerald-500/15'
                       : t.type === 'error'
@@ -92,10 +92,10 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
                 >
                   <Icon className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-sm flex-1">{t.message}</div>
+                <div className="text-sm flex-1 leading-snug">{t.message}</div>
                 <button
                   onClick={() => remove(t.id)}
-                  className="text-ocean-light hover:text-white"
+                  className="text-ocean-light hover:text-white flex items-center"
                   aria-label="Schließen"
                 >
                   <X className="w-4 h-4" />

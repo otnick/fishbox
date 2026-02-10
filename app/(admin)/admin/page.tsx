@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Shield, Users, Trash2, Sliders, Fish, RefreshCw, ArrowLeft } from 'lucide-react'
 import { useToast } from '@/components/ToastProvider'
+import { useConfirm } from '@/components/ConfirmDialogProvider'
 
 type AdminSettings = {
   shiny_lucky_chance: number
@@ -45,6 +46,7 @@ export default function AdminPage() {
   const [recalculating, setRecalculating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
+  const { confirm } = useConfirm()
 
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
     const { data } = await supabase.auth.getSession()
@@ -155,7 +157,14 @@ export default function AdminPage() {
   }
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Diesen Nutzer wirklich löschen? Das entfernt alle Daten.')) return
+    const confirmed = await confirm({
+      title: 'Nutzer löschen?',
+      message: 'Diesen Nutzer wirklich löschen? Das entfernt alle Daten.',
+      confirmLabel: 'Löschen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    })
+    if (!confirmed) return
     setError(null)
     try {
       const resp = await fetch(`/api/admin/users/${userId}`, {
@@ -175,7 +184,14 @@ export default function AdminPage() {
   }
 
   const handleDeleteCatch = async (catchId: string) => {
-    if (!confirm('Diesen Fang wirklich löschen?')) return
+    const confirmed = await confirm({
+      title: 'Fang löschen?',
+      message: 'Diesen Fang wirklich löschen?',
+      confirmLabel: 'Löschen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    })
+    if (!confirmed) return
     setError(null)
     try {
       const resp = await fetch(`/api/admin/catches/${catchId}`, {
@@ -193,7 +209,13 @@ export default function AdminPage() {
   }
 
   const handleRecalculateTrophies = async () => {
-    if (!confirm('Trophäen neu berechnen? Das kann etwas dauern.')) return
+    const confirmed = await confirm({
+      title: 'Trophäen neu berechnen?',
+      message: 'Das kann etwas dauern. Fortfahren?',
+      confirmLabel: 'Starten',
+      cancelLabel: 'Abbrechen',
+    })
+    if (!confirmed) return
     setRecalculating(true)
     setError(null)
     try {

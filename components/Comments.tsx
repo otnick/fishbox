@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { useToast } from '@/components/ToastProvider'
 import Avatar from '@/components/Avatar'
+import { useConfirm } from '@/components/ConfirmDialogProvider'
 
 interface Comment {
   id: string
@@ -29,6 +30,7 @@ export default function Comments({ catchId }: CommentsProps) {
   const [submitting, setSubmitting] = useState(false)
   const user = useCatchStore((state) => state.user)
   const { toast } = useToast()
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     fetchComments()
@@ -95,7 +97,14 @@ export default function Comments({ catchId }: CommentsProps) {
   }
 
   const handleDelete = async (commentId: string) => {
-    if (!confirm('Kommentar löschen?')) return
+    const confirmed = await confirm({
+      title: 'Kommentar löschen?',
+      message: 'Möchtest du diesen Kommentar wirklich löschen?',
+      confirmLabel: 'Löschen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    })
+    if (!confirmed) return
 
     try {
       const { error } = await supabase

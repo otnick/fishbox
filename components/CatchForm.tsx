@@ -106,7 +106,7 @@ export default function CatchForm({
   const [aiDetectionLoading, setAIDetectionLoading] = useState(false)
   const [manualMode, setManualMode] = useState(false)
   const [aiVerified, setAIVerified] = useState(false)
-  const [showShinyMoment, setShowShinyMoment] = useState(false)
+  const [shinyMomentReason, setShinyMomentReason] = useState<null | 'trophy' | 'lucky' | 'legendary'>(null)
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false)
   const [shinySettings, setShinySettings] = useState(SHINY_DEFAULTS)
   const [dateManuallySet, setDateManuallySet] = useState(false)
@@ -139,11 +139,25 @@ export default function CatchForm({
     if (!sheet) return
     const originalOverflow = sheet.style.overflowY
     const originalOverscroll = sheet.style.overscrollBehavior
+    const originalTouchAction = sheet.style.touchAction
     sheet.style.overflowY = 'hidden'
     sheet.style.overscrollBehavior = 'none'
+    sheet.style.touchAction = 'none'
+
+    const preventScroll = (event: Event) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-catch-submodal="true"]')) return
+      event.preventDefault()
+    }
+
+    sheet.addEventListener('wheel', preventScroll, { passive: false })
+    sheet.addEventListener('touchmove', preventScroll, { passive: false })
     return () => {
       sheet.style.overflowY = originalOverflow
       sheet.style.overscrollBehavior = originalOverscroll
+      sheet.style.touchAction = originalTouchAction
+      sheet.removeEventListener('wheel', preventScroll as EventListener)
+      sheet.removeEventListener('touchmove', preventScroll as EventListener)
     }
   }, [embeddedFlow, isOverlayActive])
 
@@ -382,8 +396,8 @@ export default function CatchForm({
 
       await addCatch(catchData)
       if (shinyStatus.is_shiny) {
-        setShowShinyMoment(true)
-        setTimeout(() => setShowShinyMoment(false), 1800)
+        setShinyMomentReason(shinyStatus.shiny_reason || 'trophy')
+        setTimeout(() => setShinyMomentReason(null), 1800)
       }
 
       // Check if this was a new discovery (only verified)
@@ -501,6 +515,22 @@ export default function CatchForm({
 
   const determineShinyStatus = async (speciesName: string, length: number) => {
     if (!user) return { is_shiny: false, shiny_reason: null }
+
+    try {
+      const { data, error } = await supabase
+        .rpc('get_species_max_length', {
+          species_name: speciesName,
+        })
+
+      const row = Array.isArray(data) ? data[0] : null
+      if (!error && row?.max_length && row?.sample_size >= shinySettings.minHistory) {
+        if (length >= row.max_length) {
+          return { is_shiny: true, shiny_reason: 'legendary' }
+        }
+      }
+    } catch (error) {
+      console.error('Error determining legendary status:', error)
+    }
 
     let isTrophy = false
     try {
@@ -644,12 +674,25 @@ export default function CatchForm({
         />
       )}
 
-      {showShinyMoment && (
+      {shinyMomentReason && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="bg-black/70 text-yellow-200 px-6 py-4 rounded-xl shadow-xl shiny-badge animate-shinyBurst">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-300 animate-pulse" />
-              Trophäen-Fang entdeckt!
+          <div
+            className={`px-8 py-6 rounded-2xl shadow-2xl border backdrop-blur-sm animate-shinyBurst ${
+              shinyMomentReason === 'legendary'
+                ? 'legendary-badge text-white'
+                : 'bg-gradient-to-br from-yellow-400/90 via-yellow-300/90 to-amber-300/90 text-amber-950 border-yellow-200/80'
+            }`}
+          >
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-white/80 flex items-center justify-center shadow-inner">
+                <span className="text-2xl">★</span>
+              </div>
+              <div className="text-lg font-bold tracking-wide">
+                {shinyMomentReason === 'legendary' ? 'Legendäre Trophäe!' : 'Trophäe entdeckt!'}
+              </div>
+              <div className={`text-sm font-semibold ${shinyMomentReason === 'legendary' ? 'text-white/80' : 'text-amber-900/80'}`}>
+                Ein besonderer Fang
+              </div>
             </div>
           </div>
         </div>

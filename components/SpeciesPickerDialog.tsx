@@ -80,9 +80,10 @@ export default function SpeciesPickerDialog({
       <div
         className={
           embedded
-            ? 'bg-ocean/30 backdrop-blur-sm rounded-2xl w-full h-full p-4 sm:p-6 overflow-x-hidden overflow-y-auto overscroll-contain break-words animate-catchSubModalIn'
+            ? 'bg-ocean/30 backdrop-blur-sm rounded-2xl w-full h-full p-4 sm:p-6 overflow-x-hidden overflow-y-auto overscroll-contain break-words animate-catchSubModalIn touch-auto'
             : 'bg-ocean/30 backdrop-blur-sm rounded-xl max-w-3xl w-full p-4 sm:p-6 max-h-[82dvh] sm:max-h-[92vh] overflow-x-hidden overflow-y-auto break-words'
         }
+        data-catch-submodal={embedded ? 'true' : undefined}
       >
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>

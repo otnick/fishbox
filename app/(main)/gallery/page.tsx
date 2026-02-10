@@ -10,6 +10,7 @@ import { Image as ImageIcon, Calendar, Fish, Filter, Download, Star } from 'luci
 import EmptyState from '@/components/EmptyState'
 import FilterBar from '@/components/FilterBar'
 import dynamic from 'next/dynamic'
+import { useConfirm } from '@/components/ConfirmDialogProvider'
 
 const PhotoLightbox = dynamic(() => import('@/components/PhotoLightbox'), { ssr: false })
 
@@ -21,6 +22,7 @@ interface GalleryPhoto {
   date: string
   catchId: string
   isShiny: boolean
+  shinyReason?: string | null
 }
 
 export default function GalleryPage() {
@@ -32,6 +34,7 @@ export default function GalleryPage() {
   const [filterShiny, setFilterShiny] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'species'>('date')
   const [loading, setLoading] = useState(true)
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     loadPhotos()
@@ -54,6 +57,7 @@ export default function GalleryPage() {
         date: typeof c.date === 'string' ? c.date : c.date.toISOString(),
         catchId: c.id,
         isShiny: !!c.is_shiny,
+        shinyReason: c.shiny_reason || null,
       }))
 
     setPhotos(allPhotos)
@@ -81,7 +85,13 @@ export default function GalleryPage() {
   }
 
   const downloadAll = async () => {
-    if (confirm(`${filteredPhotos.length} Fotos herunterladen?`)) {
+    const confirmed = await confirm({
+      title: 'Fotos herunterladen?',
+      message: `${filteredPhotos.length} Fotos herunterladen?`,
+      confirmLabel: 'Herunterladen',
+      cancelLabel: 'Abbrechen',
+    })
+    if (confirmed) {
       for (const photo of filteredPhotos) {
         try {
           const response = await fetch(photo.url)
@@ -213,11 +223,15 @@ export default function GalleryPage() {
         />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filteredPhotos.map((photo, index) => (
+          {filteredPhotos.map((photo, index) => {
+            const isLegendary = photo.shinyReason === 'legendary'
+            return (
             <div
               key={photo.id}
               onClick={() => setSelectedIndex(index)}
-              className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-ocean-dark hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-2xl animate-scale-in"
+              className={`group relative aspect-square rounded-xl overflow-hidden cursor-pointer bg-ocean-dark hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-2xl animate-scale-in ${
+                photo.isShiny ? (isLegendary ? 'legendary-ring' : 'shiny-ring') : ''
+              }`}
               style={{ animationDelay: `${index * 30}ms` }}
             >
               <Image
@@ -229,10 +243,10 @@ export default function GalleryPage() {
               />
 
               {photo.isShiny && (
-                <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
+                <div className={`absolute top-2 right-2 ${isLegendary ? 'legendary-badge text-white' : 'shiny-badge text-black'} rounded-full p-2 shadow-lg group`}>
                   <Star className="w-3.5 h-3.5" />
                   <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    Trophäe
+                    {photo.shinyReason === 'legendary' ? 'Legendär • Rekord' : 'Trophäe'}
                   </div>
                 </div>
               )}
@@ -259,7 +273,7 @@ export default function GalleryPage() {
                 {photo.species}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 

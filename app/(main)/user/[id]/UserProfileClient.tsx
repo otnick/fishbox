@@ -391,7 +391,7 @@ export default function UserProfileClient({ id }: { id: string }) {
                   className={`bg-ocean/30 backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300 ${
                     isOwnProfile ? 'hover:bg-ocean/40 hover:shadow-xl hover:scale-[1.02]' : 'hover:bg-ocean/40'
                   } ${draggingId === catchData.id ? 'ring-2 ring-ocean-light/60' : ''} ${
-                    catchData.is_shiny ? 'shiny-ring' : ''
+                    catchData.is_shiny ? (catchData.shiny_reason === 'legendary' ? 'legendary-ring' : 'shiny-ring') : ''
                   }`}
                 >
                   <Link href={`/catch/${catchData.id}`}>
@@ -410,10 +410,12 @@ export default function UserProfileClient({ id }: { id: string }) {
                           className="absolute top-2 left-2"
                         />
                         {catchData.is_shiny && (
-                          <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
+                          <div className={`absolute top-2 right-2 ${catchData.shiny_reason === 'legendary' ? 'legendary-badge text-white' : 'shiny-badge text-black'} rounded-full p-2 shadow-lg group`}>
                             <Star className="w-4 h-4" />
                             <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              Trophäe{catchData.shiny_reason ? ` • ${catchData.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                              {catchData.shiny_reason === 'legendary'
+                                ? 'Legendär • Rekord'
+                                : `Trophäe${catchData.shiny_reason ? ` • ${catchData.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}`}
                             </div>
                           </div>
                         )}
@@ -422,10 +424,12 @@ export default function UserProfileClient({ id }: { id: string }) {
                       <div className="h-40 bg-gradient-to-br from-ocean-light/20 to-ocean-dark/20 flex items-center justify-center relative">
                         <Fish className="w-10 h-10 text-ocean-light/50" />
                         {catchData.is_shiny && (
-                          <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
+                          <div className={`absolute top-2 right-2 ${catchData.shiny_reason === 'legendary' ? 'legendary-badge text-white' : 'shiny-badge text-black'} rounded-full p-2 shadow-lg group`}>
                             <Star className="w-4 h-4" />
                             <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              Trophäe{catchData.shiny_reason ? ` • ${catchData.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                              {catchData.shiny_reason === 'legendary'
+                                ? 'Legendär • Rekord'
+                                : `Trophäe${catchData.shiny_reason ? ` • ${catchData.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}`}
                             </div>
                           </div>
                         )}

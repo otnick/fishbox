@@ -39,7 +39,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             />
             <div
               data-catch-modal-sheet="true"
-              className="relative w-full max-w-2xl max-h-[82dvh] sm:max-h-[75vh] overflow-x-hidden overflow-y-auto bg-ocean/30 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-2xl animate-catchModalIn"
+              className="relative w-full max-w-none sm:max-w-2xl max-h-[80vh] sm:max-h-[75vh] overflow-x-hidden overflow-y-auto bg-ocean-deeper sm:bg-ocean/30 backdrop-blur-sm rounded-t-3xl sm:rounded-2xl p-6 sm:p-6 shadow-2xl animate-catchModalIn"
             >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-white">Neuen Fang hinzufügen</h2>

@@ -341,7 +341,7 @@ export default function CatchDetailClient({ id }: { id: string }) {
         {/* Right Column - Info */}
         <div className="space-y-4">
           {/* Main Info Card */}
-          <div className={`bg-ocean/30 backdrop-blur-sm rounded-xl p-6 ${catchData.is_shiny ? 'shiny-ring' : ''}`}>
+          <div className={`bg-ocean/30 backdrop-blur-sm rounded-xl p-6 ${catchData.is_shiny ? (catchData.shiny_reason === 'legendary' ? 'legendary-ring' : 'shiny-ring') : ''}`}>
             <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
               <FishIcon className="w-8 h-8 text-ocean-light" />
               {catchData.species}
@@ -350,12 +350,13 @@ export default function CatchDetailClient({ id }: { id: string }) {
               <div className="space-y-1 mb-3">
                 <div className="inline-flex items-center gap-2 text-sm text-yellow-300">
                   <span className="relative group inline-flex items-center gap-2">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    Trophäe-Fang
+                    <Star className={`w-4 h-4 ${catchData.shiny_reason === 'legendary' ? 'text-white' : 'fill-yellow-400 text-yellow-400'}`} />
+                    {catchData.shiny_reason === 'legendary' ? 'Legendär' : 'Trophäe-Fang'}
                     {catchData.shiny_reason === 'trophy' && <span className="text-yellow-200/80">(Rekord)</span>}
                     {catchData.shiny_reason === 'lucky' && <span className="text-yellow-200/80">(Glück)</span>}
+                    {catchData.shiny_reason === 'legendary' && <span className="text-white/80">(Rekord)</span>}
                     <span className="absolute left-0 -bottom-8 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      Trophäe
+                      {catchData.shiny_reason === 'legendary' ? 'Legendär • Rekord' : 'Trophäe'}
                     </span>
                   </span>
                 </div>

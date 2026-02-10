@@ -11,6 +11,7 @@ import { ArrowLeft, MapPin, Calendar, Ruler, Scale, Trophy, Info, Lightbulb, Loc
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { useToast } from '@/components/ToastProvider'
+import { useConfirm } from '@/components/ConfirmDialogProvider'
 
 export default function FishDexDetailClient({ id }: { id: string }) {
   const user = useCatchStore(state => state.user)
@@ -19,6 +20,7 @@ export default function FishDexDetailClient({ id }: { id: string }) {
   const [loading, setLoading] = useState(true)
   const [resetting, setResetting] = useState(false)
   const { toast } = useToast()
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     if (user) {
@@ -78,13 +80,13 @@ export default function FishDexDetailClient({ id }: { id: string }) {
   const resetFishDexEntry = async () => {
     if (!user || !entry) return
 
-    const confirmed = confirm(
-      `Möchtest du wirklich deinen FishDex-Eintrag für ${entry.name} zurücksetzen?\n\n` +
-      `Dies wird:\n` +
-      `• Den Eintrag aus deiner FishDex entfernen\n` +
-      `• Die Fischart als "nicht entdeckt" markieren\n\n` +
-      `WICHTIG: Deine Fänge bleiben erhalten und die Art wird beim nächsten Fang wieder entdeckt!`
-    )
+    const confirmed = await confirm({
+      title: 'FishDex-Eintrag zurücksetzen?',
+      message: `Möchtest du wirklich den Eintrag für ${entry.name} zurücksetzen? Deine Fänge bleiben erhalten.`,
+      confirmLabel: 'Zurücksetzen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    })
 
     if (!confirmed) return
 

@@ -13,6 +13,7 @@ import VerificationBadge from '@/components/VerificationBadge'
 import EmptyState from '@/components/EmptyState'
 import FilterBar from '@/components/FilterBar'
 import { useToast } from '@/components/ToastProvider'
+import { useConfirm } from '@/components/ConfirmDialogProvider'
 
 const Map = dynamic(() => import('./Map'), { ssr: false })
 
@@ -30,6 +31,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
   const [pinSaving, setPinSaving] = useState(false)
   const [showTrophiesOnly, setShowTrophiesOnly] = useState(false)
   const { toast } = useToast()
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     const loadPinned = async () => {
@@ -64,7 +66,14 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm('Möchtest du diesen Fang wirklich löschen?')) {
+    const confirmed = await confirm({
+      title: 'Fang löschen?',
+      message: 'Möchtest du diesen Fang wirklich löschen?',
+      confirmLabel: 'Löschen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    })
+    if (confirmed) {
       await deleteCatch(id)
       toast('Fang gelöscht', 'success')
     }
@@ -170,13 +179,15 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
 
       {/* Grid Layout - Like Social Page */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {visibleCatches.map((catchItem) => (
-          <div
-            key={catchItem.id}
-            className={`bg-ocean/30 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 ${
-              catchItem.is_shiny ? 'shiny-ring' : ''
-            }`}
-          >
+        {visibleCatches.map((catchItem) => {
+          const isLegendary = catchItem.shiny_reason === 'legendary'
+          return (
+            <div
+              key={catchItem.id}
+              className={`bg-ocean/30 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 ${
+                catchItem.is_shiny ? (isLegendary ? 'legendary-ring' : 'shiny-ring') : ''
+              }`}
+            >
             {/* Photo - Like Social Page */}
             <Link href={`/catch/${catchItem.id}`}>
               <div className="relative h-48 bg-ocean-dark cursor-pointer group">
@@ -198,10 +209,12 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
                     />
 
                     {catchItem.is_shiny && (
-                      <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
+                      <div className={`absolute top-2 right-2 ${isLegendary ? 'legendary-badge text-white' : 'shiny-badge text-black'} rounded-full p-2 shadow-lg group`}>
                         <Star className="w-4 h-4" />
                         <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          Trophäe{catchItem.shiny_reason ? ` • ${catchItem.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                          {catchItem.shiny_reason === 'legendary'
+                            ? 'Legendär • Rekord'
+                            : `Trophäe${catchItem.shiny_reason ? ` • ${catchItem.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}`}
                         </div>
                       </div>
                     )}
@@ -215,10 +228,12 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
                   <div className="h-full flex items-center justify-center relative">
                     <Fish className="w-14 h-14 opacity-50 text-ocean-light" />
                     {catchItem.is_shiny && (
-                      <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
+                      <div className={`absolute top-2 right-2 ${isLegendary ? 'legendary-badge text-white' : 'shiny-badge text-black'} rounded-full p-2 shadow-lg group`}>
                         <Star className="w-4 h-4" />
                         <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          Trophäe{catchItem.shiny_reason ? ` • ${catchItem.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                          {catchItem.shiny_reason === 'legendary'
+                            ? 'Legendär • Rekord'
+                            : `Trophäe${catchItem.shiny_reason ? ` • ${catchItem.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}`}
                         </div>
                       </div>
                     )}
@@ -362,7 +377,8 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

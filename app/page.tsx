@@ -11,16 +11,12 @@ export default function Home() {
 
   useEffect(() => {
     if (user) {
-      router.push('/dashboard')
+      router.replace('/dashboard')
     }
   }, [user, router])
 
   if (user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-ocean-deeper to-ocean-dark flex items-center justify-center">
-        <div className="text-white text-2xl">Weiterleitung...</div>
-      </div>
-    )
+    return null
   }
 
   return <Auth onSuccess={() => router.push('/dashboard')} />

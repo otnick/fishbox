@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import AuthProvider from '@/components/auth/AuthProvider'
 import ToastProvider from '@/components/ToastProvider'
+import ConfirmDialogProvider from '@/components/ConfirmDialogProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -37,7 +38,9 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+          </ToastProvider>
         </AuthProvider>
         <script
           dangerouslySetInnerHTML={{

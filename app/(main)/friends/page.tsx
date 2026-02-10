@@ -7,6 +7,7 @@ import { useCatchStore } from '@/lib/store'
 import { Users, UserPlus, UserCheck, UserX, Search, Fish, Award } from 'lucide-react'
 import { useToast } from '@/components/ToastProvider'
 import Avatar from '@/components/Avatar'
+import { useConfirm } from '@/components/ConfirmDialogProvider'
 
 interface Friend {
   id: string
@@ -35,6 +36,7 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends')
   const { toast } = useToast()
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     if (user) {
@@ -240,7 +242,14 @@ export default function FriendsPage() {
   }
 
   const removeFriend = async (friendId: string) => {
-    if (!confirm('Freund wirklich entfernen?')) return
+    const confirmed = await confirm({
+      title: 'Freund entfernen?',
+      message: 'Freund wirklich entfernen?',
+      confirmLabel: 'Entfernen',
+      cancelLabel: 'Abbrechen',
+      variant: 'danger',
+    })
+    if (!confirmed) return
 
     try {
       await supabase
