@@ -10,6 +10,7 @@ import {
   Map,
   Menu,
   User,
+  Settings,
 } from 'lucide-react'
 
 const navigation = [
@@ -18,6 +19,7 @@ const navigation = [
   { name: 'Karte', href: '/map', icon: Map },
   { name: 'Statistiken', href: '/stats', icon: BarChart3 },
   { name: 'Profil', href: '/profile', icon: User },
+  { name: 'Einstellungen', href: '/settings', icon: Settings },
 ]
 
 interface NavigationProps {

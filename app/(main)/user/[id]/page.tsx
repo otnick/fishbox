@@ -37,7 +37,7 @@ interface PublicCatch {
   ai_verified?: boolean
 }
 
-export default function UserProfilePage({ params }: { params: { username: string } }) {
+export default function UserProfilePage({ params }: { params: { id: string } }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [catches, setCatches] = useState<PublicCatch[]>([])
   const [pinnedCatches, setPinnedCatches] = useState<PublicCatch[]>([])
@@ -62,7 +62,7 @@ export default function UserProfilePage({ params }: { params: { username: string
   useEffect(() => {
     fetchProfile()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.username, showPublicOnly, currentUser?.id])
+  }, [params.id, showPublicOnly, currentUser?.id])
 
   const fetchProfile = async () => {
     try {
@@ -70,7 +70,7 @@ export default function UserProfilePage({ params }: { params: { username: string
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('username', params.username)
+        .eq('id', params.id)
         .single()
 
       if (profileError) throw profileError
@@ -206,7 +206,7 @@ export default function UserProfilePage({ params }: { params: { username: string
         <EmptyState
           icon={User}
           title="Benutzer nicht gefunden"
-          description={`@${params.username} existiert nicht oder ist privat.`}
+          description="Dieser Benutzer existiert nicht oder ist privat."
           actionLabel="Zurück zum Feed"
           actionHref="/social"
         />
@@ -292,11 +292,11 @@ export default function UserProfilePage({ params }: { params: { username: string
         </Link>
         {isOwnProfile && (
           <Link
-            href="/profile"
+            href="/settings"
             className="flex items-center gap-2 text-ocean-light hover:text-white text-sm transition-colors"
           >
             <Edit className="w-4 h-4" />
-            Profil bearbeiten
+            Einstellungen
           </Link>
         )}
       </div>

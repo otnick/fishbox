@@ -382,7 +382,7 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
                       : 'Ausstehend'}
               </span>
             </div>
-            <Link href={`/user/${catchData.username}`}>
+            <Link href={`/user/${catchData.user_id}`}>
               <p className="text-ocean-light text-sm hover:text-white transition-colors mb-4">
                 von @{catchData.username}
               </p>

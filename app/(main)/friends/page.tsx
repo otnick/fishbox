@@ -336,7 +336,7 @@ export default function FriendsPage() {
                   className="bg-ocean/30 backdrop-blur-sm rounded-xl p-6 hover:bg-ocean/40 transition-all duration-300 hover:shadow-xl"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <Link href={`/user/${friend.username}`}>
+                    <Link href={`/user/${friend.id}`}>
                       <div>
                         <h3 className="text-lg font-bold text-white hover:text-ocean-light transition-colors">
                           @{friend.username}
@@ -368,7 +368,7 @@ export default function FriendsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Link href={`/user/${friend.username}`} className="flex-1">
+                    <Link href={`/user/${friend.id}`} className="flex-1">
                       <button className="w-full px-3 py-2 bg-ocean hover:bg-ocean-light text-white rounded text-sm transition-colors">
                         Profil ansehen
                       </button>
@@ -403,7 +403,7 @@ export default function FriendsPage() {
                   key={request.id}
                   className="bg-ocean/30 backdrop-blur-sm rounded-xl p-6 flex items-center justify-between hover:bg-ocean/40 transition-all"
                 >
-                  <Link href={`/user/${request.username}`}>
+                  <Link href={`/user/${request.friend_id}`}>
                     <div>
                       <h3 className="text-lg font-bold text-white hover:text-ocean-light transition-colors">
                         @{request.username}
@@ -461,7 +461,7 @@ export default function FriendsPage() {
                   key={result.id}
                   className="bg-ocean/30 backdrop-blur-sm rounded-xl p-6 hover:bg-ocean/40 transition-all duration-300"
                 >
-                  <Link href={`/user/${result.username}`}>
+                  <Link href={`/user/${result.id}`}>
                     <div className="mb-4">
                       <h3 className="text-lg font-bold text-white hover:text-ocean-light transition-colors">
                         @{result.username}

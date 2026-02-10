@@ -146,7 +146,7 @@ export default function Comments({ catchId }: CommentsProps) {
             <div key={comment.id} className="bg-ocean-dark/50 rounded-lg p-3">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <Link href={`/user/${comment.user_email}`}>
+                  <Link href={`/user/${comment.user_id}`}>
                     <div className="font-semibold text-white text-sm hover:text-ocean-light transition-colors cursor-pointer">
                       @{comment.user_email}
                     </div>

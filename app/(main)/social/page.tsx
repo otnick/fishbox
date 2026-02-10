@@ -277,7 +277,7 @@ export default function SocialPage() {
                   {/* User */}
                   <div className="flex items-center gap-2 mb-3">
                     <Link
-                      href={`/user/${activity.username}`}
+                      href={`/user/${activity.user_id}`}
                       onClick={(e) => e.stopPropagation()}
                       className="text-ocean-light hover:text-white transition-colors text-sm font-semibold"
                     >

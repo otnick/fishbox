@@ -307,7 +307,7 @@ export default function LeaderboardPage() {
                 </div>
 
                 <div className="p-4">
-                  <Link href={`/user/${entry.username}`}>
+                  <Link href={`/user/${entry.user_id}`}>
                     <h3 className="text-lg font-bold text-white hover:text-ocean-light transition-colors mb-2 flex items-center gap-2">
                       @{entry.username}
                       {index < 3 && <Award className="w-4 h-4 text-ocean-light" />}
