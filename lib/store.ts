@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from './supabase'
 import type { User } from '@supabase/supabase-js'
 import type { WeatherData } from './utils/weather'
+import { emitToast } from './toast'
 
 export interface Catch {
   id: string
@@ -136,7 +137,7 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
 
     if (error) {
       console.error('Error adding catch:', error)
-      alert('Fehler beim Speichern: ' + error.message)
+      emitToast('Fehler beim Speichern: ' + error.message, 'error')
     } else {
       // Map photo_url back to photo for frontend
       const catchWithPhoto = {
@@ -158,7 +159,7 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
 
     if (error) {
       console.error('Error deleting catch:', error)
-      alert('Fehler beim Löschen: ' + error.message)
+      emitToast('Fehler beim Löschen: ' + error.message, 'error')
     } else {
       set((state) => ({
         catches: state.catches.filter((c) => c.id !== id),
@@ -183,7 +184,7 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
 
     if (error) {
       console.error('Error updating catch:', error)
-      alert('Fehler beim Aktualisieren: ' + error.message)
+      emitToast('Fehler beim Aktualisieren: ' + error.message, 'error')
     } else {
       set((state) => ({
         catches: state.catches.map((c) =>

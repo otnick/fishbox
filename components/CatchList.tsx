@@ -7,9 +7,12 @@ import { useCatchStore, type Catch } from '@/lib/store'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Eye, Trash2, MapPin, Calendar, Ruler, Fish, Star } from 'lucide-react'
+import { Eye, Trash2, MapPin, Calendar, Ruler, Fish, Star, Filter } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import VerificationBadge from '@/components/VerificationBadge'
+import EmptyState from '@/components/EmptyState'
+import FilterBar from '@/components/FilterBar'
+import { useToast } from '@/components/ToastProvider'
 
 const Map = dynamic(() => import('./Map'), { ssr: false })
 
@@ -26,6 +29,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
   const [pinnedCatchIds, setPinnedCatchIds] = useState<string[]>([])
   const [pinSaving, setPinSaving] = useState(false)
   const [showTrophiesOnly, setShowTrophiesOnly] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     const loadPinned = async () => {
@@ -49,21 +53,20 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
 
   if (catches.length === 0) {
     return (
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-lg p-12 text-center">
-        <div className="mb-4 flex justify-center"><Fish className="w-14 h-14 text-ocean-light" /></div>
-        <h3 className="text-2xl font-bold text-white mb-2">
-          Noch keine Fänge
-        </h3>
-        <p className="text-ocean-light">
-          Füge deinen ersten Fang hinzu!
-        </p>
-      </div>
+      <EmptyState
+        icon={Fish}
+        title="Noch keine Fänge"
+        description="Füge deinen ersten Fang hinzu!"
+        actionLabel="Fang hinzufügen"
+        onAction={() => useCatchStore.getState().openCatchModal()}
+      />
     )
   }
 
   const handleDelete = async (id: string) => {
     if (confirm('Möchtest du diesen Fang wirklich löschen?')) {
       await deleteCatch(id)
+      toast('Fang gelöscht', 'success')
     }
   }
 
@@ -75,6 +78,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
       .eq('id', catchItem.id)
 
     if (error) {
+      toast('Fehler beim Aktualisieren der Sichtbarkeit', 'error')
       return
     }
 
@@ -91,6 +95,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
       const nextPinned = pinnedCatchIds.filter((id) => id !== catchItem.id)
       await persistPinned(nextPinned)
     }
+    toast(newPublicState ? 'Fang ist jetzt öffentlich' : 'Fang ist jetzt privat', 'success')
   }
 
   const persistPinned = async (nextPinned: string[]) => {
@@ -105,7 +110,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
       .eq('id', user.id)
 
     if (error) {
-      alert('Fehler beim Anpinnen: ' + error.message)
+      toast('Fehler beim Anpinnen: ' + error.message, 'error')
       setPinSaving(false)
       return false
     }
@@ -118,12 +123,12 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
   const handleTogglePin = async (catchItem: Catch) => {
     const isPinned = pinnedCatchIds.includes(catchItem.id)
     if (!catchItem.is_public && !isPinned) {
-      alert('Bitte mache den Fang zuerst öffentlich, damit er in der Vitrine angezeigt werden kann.')
+      toast('Bitte mache den Fang zuerst öffentlich, damit er in der Vitrine angezeigt werden kann.', 'info')
       return
     }
 
     if (!isPinned && pinnedCatchIds.length >= 6) {
-      alert('Du kannst maximal 6 Fänge anpinnen.')
+      toast('Du kannst maximal 6 Fänge anpinnen.', 'info')
       return
     }
 
@@ -132,6 +137,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
       : [...pinnedCatchIds, catchItem.id]
 
     await persistPinned(nextPinned)
+    toast(isPinned ? 'Fang aus Vitrine entfernt' : 'Fang in Vitrine gepinnt', 'success')
   }
 
   const visibleCatches = showTrophiesOnly
@@ -144,7 +150,13 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
         Meine Fänge ({visibleCatches.length})
       </h2>
 
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-lg p-4">
+      <FilterBar
+        title="Filter"
+        icon={Filter}
+        activeFilters={showTrophiesOnly ? [{ id: 'trophies', label: 'Trophäen', onClear: () => setShowTrophiesOnly(false) }] : []}
+        onClearAll={() => setShowTrophiesOnly(false)}
+        clearAllLabel="Alle Filter"
+      >
         <label className="flex items-center gap-2 text-ocean-light">
           <input
             type="checkbox"
@@ -154,7 +166,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
           />
           Nur Trophäen anzeigen
         </label>
-      </div>
+      </FilterBar>
 
       {/* Grid Layout - Like Social Page */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

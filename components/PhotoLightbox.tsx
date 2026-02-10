@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Share2 } from 'lucide-react'
+import { useToast } from '@/components/ToastProvider'
 
 interface Photo {
   id: string
@@ -20,6 +21,7 @@ interface PhotoLightboxProps {
 export default function PhotoLightbox({ photos, initialIndex, onClose }: PhotoLightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [isZoomed, setIsZoomed] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -78,7 +80,7 @@ export default function PhotoLightbox({ photos, initialIndex, onClose }: PhotoLi
       }
     } else {
       navigator.clipboard.writeText(window.location.href)
-      alert('Link kopiert!')
+      toast('Link kopiert!', 'success')
     }
   }
 

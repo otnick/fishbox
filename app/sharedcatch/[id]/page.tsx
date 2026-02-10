@@ -9,6 +9,7 @@ import Link from 'next/link'
 import Map from '@/components/Map'
 import VerificationBadge from '@/components/VerificationBadge'
 import { Fish, Heart, Share2 } from 'lucide-react'
+import { useToast } from '@/components/ToastProvider'
 
 interface SharedCatch {
   id: string
@@ -32,6 +33,7 @@ export default function SharePage({ params }: { params: { id: string } }) {
   const [catchData, setCatchData] = useState<SharedCatch | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchCatch()
@@ -82,7 +84,7 @@ export default function SharePage({ params }: { params: { id: string } }) {
     } else {
       // Fallback: Copy to clipboard
       await navigator.clipboard.writeText(window.location.href)
-      alert('Link in Zwischenablage kopiert!')
+      toast('Link in Zwischenablage kopiert!', 'success')
     }
   }
 

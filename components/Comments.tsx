@@ -6,6 +6,7 @@ import { useCatchStore } from '@/lib/store'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { useToast } from '@/components/ToastProvider'
 
 interface Comment {
   id: string
@@ -25,6 +26,7 @@ export default function Comments({ catchId }: CommentsProps) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const user = useCatchStore((state) => state.user)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchComments()
@@ -83,7 +85,7 @@ export default function Comments({ catchId }: CommentsProps) {
       await fetchComments()
     } catch (error) {
       console.error('Error posting comment:', error)
-      alert('Fehler beim Posten')
+      toast('Fehler beim Posten', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -101,6 +103,7 @@ export default function Comments({ catchId }: CommentsProps) {
       if (error) throw error
 
       await fetchComments()
+      toast('Kommentar gelöscht', 'success')
     } catch (error) {
       console.error('Error deleting comment:', error)
     }

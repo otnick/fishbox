@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCatchStore } from '@/lib/store'
 import { MapPin, Fish, Filter, TrendingUp, RotateCcw } from 'lucide-react'
+import FilterBar from '@/components/FilterBar'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 
@@ -227,12 +228,42 @@ export default function MapPage() {
         </p>
       </div>
 
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-ocean-light" />
-          <span className="text-white font-semibold">Filter & Sortierung</span>
-        </div>
-
+      <FilterBar
+        title="Filter & Sortierung"
+        icon={Filter}
+        activeFilters={[
+          ...(filterSpecies !== 'all'
+            ? [{ id: 'species', label: `Art: ${filterSpecies}`, onClear: () => setFilterSpecies('all') }]
+            : []),
+          ...(filterTimeframe !== 'all'
+            ? [{
+                id: 'timeframe',
+                label:
+                  filterTimeframe === 'week'
+                    ? 'Zeit: Letzte Woche'
+                    : filterTimeframe === 'month'
+                      ? 'Zeit: Letzter Monat'
+                      : 'Zeit: Letztes Jahr',
+                onClear: () => setFilterTimeframe('all'),
+              }]
+            : []),
+          ...(filterVerification !== 'all'
+            ? [{
+                id: 'verify',
+                label:
+                  filterVerification === 'verified'
+                    ? 'Verifiziert'
+                    : filterVerification === 'manual'
+                      ? 'Manuell'
+                      : 'Ausstehend',
+                onClear: () => setFilterVerification('all'),
+              }]
+            : []),
+          ...(showHeatmap ? [{ id: 'heatmap', label: 'Heatmap', onClear: () => setShowHeatmap(false) }] : []),
+        ]}
+        onClearAll={resetFilters}
+        clearAllLabel="Alles zurücksetzen"
+      >
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-ocean-light text-sm mb-2">Fischart</label>
@@ -329,7 +360,7 @@ export default function MapPage() {
             </button>
           </div>
         </div>
-      </div>
+      </FilterBar>
 
       <div className="md:hidden inline-flex w-full rounded-xl bg-ocean/30 border border-ocean-light/20 p-1">
         <button

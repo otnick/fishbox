@@ -38,6 +38,7 @@ import {
   Sparkles,
   AlertTriangle,
 } from 'lucide-react'
+import FilterBar from '@/components/FilterBar'
 
 ChartJS.register(
   CategoryScale,
@@ -716,11 +717,51 @@ export default function StatsPage() {
         </div>
       )}
 
-      <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-4 border border-ocean-light/10">
-        <div className="text-white font-semibold inline-flex items-center gap-2 mb-3">
-          <Filter className="w-4 h-4 text-ocean-light" />
-          Filter
-        </div>
+      <FilterBar
+        title="Filter"
+        icon={Filter}
+        activeFilters={[
+          ...(rangeFilter !== DEFAULT_RANGE
+            ? [{
+                id: 'range',
+                label:
+                  rangeFilter === '30d'
+                    ? 'Zeitraum: 30 Tage'
+                    : rangeFilter === '90d'
+                      ? 'Zeitraum: 90 Tage'
+                      : 'Zeitraum: 365 Tage',
+                onClear: () => setRangeFilter(DEFAULT_RANGE),
+              }]
+            : []),
+          ...(verificationFilter !== DEFAULT_VERIFICATION
+            ? [{
+                id: 'verify',
+                label:
+                  verificationFilter === 'verified'
+                    ? 'Verifiziert'
+                    : verificationFilter === 'manual'
+                      ? 'Manuell'
+                      : 'Ausstehend',
+                onClear: () => setVerificationFilter(DEFAULT_VERIFICATION),
+              }]
+            : []),
+          ...(weatherFilter !== DEFAULT_WEATHER
+            ? [{
+                id: 'weather',
+                label: weatherFilter === 'with' ? 'Wetter: Mit Daten' : 'Wetter: Ohne Daten',
+                onClear: () => setWeatherFilter(DEFAULT_WEATHER),
+              }]
+            : []),
+          ...(baitFilter !== DEFAULT_BAIT
+            ? [{ id: 'bait', label: `Köder: ${baitFilter}`, onClear: () => setBaitFilter(DEFAULT_BAIT) }]
+            : []),
+          ...(weatherDescFilter !== DEFAULT_WEATHER_DESC
+            ? [{ id: 'weatherDesc', label: `Wettertyp: ${weatherDescFilter}`, onClear: () => setWeatherDescFilter(DEFAULT_WEATHER_DESC) }]
+            : []),
+        ]}
+        onClearAll={resetFilters}
+        clearAllLabel="Alles zurücksetzen"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
           <select
             value={rangeFilter}
@@ -786,7 +827,7 @@ export default function StatsPage() {
             Reset Filter
           </button>
         </div>
-      </div>
+      </FilterBar>
 
       {tab === 'overview' && (
         <div className="space-y-6">

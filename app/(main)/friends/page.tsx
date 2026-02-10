@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useCatchStore } from '@/lib/store'
 import { Users, UserPlus, UserCheck, UserX, Search, Fish, Award } from 'lucide-react'
+import { useToast } from '@/components/ToastProvider'
 
 interface Friend {
   id: string
@@ -31,6 +32,7 @@ export default function FriendsPage() {
   const [searchResults, setSearchResults] = useState<Friend[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends')
+  const { toast } = useToast()
 
   useEffect(() => {
     if (user) {
@@ -187,13 +189,13 @@ export default function FriendsPage() {
 
       if (error) throw error
 
-      alert('Freundschaftsanfrage gesendet!')
+      toast('Freundschaftsanfrage gesendet!', 'success')
       setSearchResults(prev => prev.filter(u => u.id !== friendId))
     } catch (error: any) {
       if (error.code === '23505') {
-        alert('Anfrage bereits gesendet!')
+        toast('Anfrage bereits gesendet!', 'info')
       } else {
-        alert('Fehler beim Senden der Anfrage')
+        toast('Fehler beim Senden der Anfrage', 'error')
       }
     }
   }
@@ -215,7 +217,7 @@ export default function FriendsPage() {
 
       fetchFriends()
       fetchRequests()
-      alert('Freundschaftsanfrage angenommen!')
+      toast('Freundschaftsanfrage angenommen!', 'success')
     } catch (error) {
       console.error('Error accepting request:', error)
     }
@@ -229,7 +231,7 @@ export default function FriendsPage() {
         .eq('id', requestId)
 
       fetchRequests()
-      alert('Anfrage abgelehnt')
+      toast('Anfrage abgelehnt', 'info')
     } catch (error) {
       console.error('Error rejecting request:', error)
     }
@@ -245,7 +247,7 @@ export default function FriendsPage() {
         .or(`and(user_id.eq.${user!.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${user!.id})`)
 
       fetchFriends()
-      alert('Freund entfernt')
+      toast('Freund entfernt', 'success')
     } catch (error) {
       console.error('Error removing friend:', error)
     }

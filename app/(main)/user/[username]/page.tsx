@@ -12,6 +12,7 @@ import VerificationBadge from '@/components/VerificationBadge'
 import LoadingSkeleton from '@/components/LoadingSkeleton'
 import EmptyState from '@/components/EmptyState'
 import { getSpeciesRarity } from '@/lib/utils/speciesInfo'
+import { useToast } from '@/components/ToastProvider'
 
 interface UserProfile {
   id: string
@@ -56,6 +57,7 @@ export default function UserProfilePage({ params }: { params: { username: string
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const currentUser = useCatchStore((state) => state.user)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchProfile()
@@ -233,7 +235,7 @@ export default function UserProfilePage({ params }: { params: { username: string
         .filter(Boolean) as PublicCatch[]
       setPinnedCatches(orderedPinned)
     } catch (error: any) {
-      alert('Fehler beim Speichern der Vitrine: ' + error.message)
+      toast('Fehler beim Speichern der Vitrine: ' + error.message, 'error')
     } finally {
       setPinSaving(false)
     }

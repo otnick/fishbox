@@ -7,6 +7,8 @@ import { useCatchStore } from '@/lib/store'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Image as ImageIcon, Calendar, Fish, Filter, Download, Star } from 'lucide-react'
+import EmptyState from '@/components/EmptyState'
+import FilterBar from '@/components/FilterBar'
 import dynamic from 'next/dynamic'
 
 const PhotoLightbox = dynamic(() => import('@/components/PhotoLightbox'), { ssr: false })
@@ -136,11 +138,21 @@ export default function GalleryPage() {
 
       {/* Filters */}
       {photos.length > 0 && (
-        <div className="bg-ocean/30 backdrop-blur-sm rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-5 h-5 text-ocean-light" />
-            <span className="text-white font-semibold">Filter</span>
-          </div>
+        <FilterBar
+          title="Filter"
+          icon={Filter}
+          activeFilters={[
+            ...(filterSpecies !== 'all'
+              ? [{ id: 'species', label: `Art: ${filterSpecies}`, onClear: () => setFilterSpecies('all') }]
+              : []),
+            ...(filterShiny ? [{ id: 'trophies', label: 'Trophäen', onClear: () => setFilterShiny(false) }] : []),
+          ]}
+          onClearAll={() => {
+            setFilterSpecies('all')
+            setFilterShiny(false)
+          }}
+          clearAllLabel="Alle Filter"
+        >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-ocean-light text-sm mb-2">Fischart</label>
@@ -183,31 +195,22 @@ export default function GalleryPage() {
               </select>
             </div>
           </div>
-        </div>
+        </FilterBar>
       )}
 
       {/* Gallery Grid */}
       {filteredPhotos.length === 0 ? (
-        <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-12 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-ocean-light/20 to-ocean/20 mb-6">
-            <ImageIcon className="w-10 h-10 text-ocean-light" />
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-2">
-            {filterSpecies !== 'all' ? `Keine ${filterSpecies}-Fotos` : 'Keine Fotos'}
-          </h3>
-          <p className="text-ocean-light mb-6">
-            {filterSpecies !== 'all' 
+        <EmptyState
+          icon={ImageIcon}
+          title={filterSpecies !== 'all' ? `Keine ${filterSpecies}-Fotos` : 'Keine Fotos'}
+          description={
+            filterSpecies !== 'all'
               ? `Keine Fotos von ${filterSpecies} gefunden.`
               : 'Füge Fotos zu deinen Fängen hinzu!'
-            }
-          </p>
-          <Link
-            href="/catches"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-ocean-light to-ocean hover:from-ocean hover:to-ocean-dark text-white font-semibold py-3 px-8 rounded-lg transition-all shadow-lg hover:shadow-xl"
-          >
-            Fang hinzufügen
-          </Link>
-        </div>
+          }
+          actionLabel="Fang hinzufügen"
+          actionHref="/catches"
+        />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredPhotos.map((photo, index) => (

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Shield, Users, Trash2, Sliders, Fish, RefreshCw, ArrowLeft } from 'lucide-react'
+import { useToast } from '@/components/ToastProvider'
 
 type AdminSettings = {
   shiny_lucky_chance: number
@@ -43,6 +44,7 @@ export default function AdminPage() {
   const [catchesLoading, setCatchesLoading] = useState(false)
   const [recalculating, setRecalculating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     const init = async () => {
@@ -166,6 +168,7 @@ export default function AdminPage() {
         setSelectedUser(null)
         setUserCatches([])
       }
+      toast('Nutzer gelöscht', 'success')
     } catch (err: any) {
       setError(err.message || 'Fehler beim Löschen')
     }
@@ -183,6 +186,7 @@ export default function AdminPage() {
       if (selectedUser) {
         await loadCatchesForUser(selectedUser.id)
       }
+      toast('Fang gelöscht', 'success')
     } catch (err: any) {
       setError(err.message || 'Fehler beim Löschen')
     }
@@ -199,7 +203,7 @@ export default function AdminPage() {
       })
       if (!resp.ok) throw new Error('Neuberechnung fehlgeschlagen')
       const payload = await resp.json()
-      alert(`Trophäen aktualisiert: ${payload.updated || 0}`)
+      toast(`Trophäen aktualisiert: ${payload.updated || 0}`, 'success')
     } catch (err: any) {
       setError(err.message || 'Fehler bei der Neuberechnung')
     } finally {

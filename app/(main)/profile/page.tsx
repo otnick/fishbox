@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { User, Package, FileSpreadsheet } from 'lucide-react'
+import { useToast } from '@/components/ToastProvider'
 import { 
   notificationService, 
   getNotificationPreference, 
@@ -29,6 +30,7 @@ export default function ProfilePage() {
     bio: '',
   })
   const [saving, setSaving] = useState(false)
+  const { toast } = useToast()
   useEffect(() => {
     setNotificationsEnabled(getNotificationPreference())
     fetchProfile()
@@ -71,9 +73,9 @@ export default function ProfilePage() {
 
       await fetchProfile()
       setEditingProfile(false)
-      alert('Profil gespeichert!')
+      toast('Profil gespeichert!', 'success')
     } catch (error: any) {
-      alert('Fehler: ' + error.message)
+      toast('Fehler: ' + error.message, 'error')
     } finally {
       setSaving(false)
     }
@@ -239,7 +241,7 @@ export default function ProfilePage() {
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/user/${profile.username}`)
-                      alert('Link kopiert!')
+                      toast('Link kopiert!', 'success')
                     }}
                     className="text-ocean-light hover:text-white transition-colors"
                     title="Link kopieren"
@@ -340,7 +342,7 @@ export default function ProfilePage() {
           Diese Aktion kann nicht rückgängig gemacht werden. Alle deine Daten werden permanent gelöscht.
         </p>
         <button
-          onClick={() => alert('Account-Löschung: Bitte kontaktiere den Support')}
+          onClick={() => toast('Account-Löschung: Bitte kontaktiere den Support', 'info')}
           className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
         >
           Account löschen

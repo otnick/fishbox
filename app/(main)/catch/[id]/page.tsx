@@ -25,6 +25,7 @@ import {
   Star,
 } from 'lucide-react'
 import VerificationBadge from '@/components/VerificationBadge'
+import { useToast } from '@/components/ToastProvider'
 
 const Map = dynamic(() => import('@/components/Map'), { ssr: false })
 const Comments = dynamic(() => import('@/components/Comments'), { ssr: false })
@@ -73,6 +74,7 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const user = useCatchStore((state) => state.user)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (user) {
@@ -216,7 +218,7 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
       }
     } catch (error) {
       console.error('Error toggling public:', error)
-      alert('Fehler beim Aktualisieren der Sichtbarkeit')
+      toast('Fehler beim Aktualisieren der Sichtbarkeit', 'error')
     }
   }
 
@@ -232,7 +234,7 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
       .eq('id', user.id)
 
     if (error) {
-      alert('Fehler beim Anpinnen: ' + error.message)
+      toast('Fehler beim Anpinnen: ' + error.message, 'error')
       setPinSaving(false)
       return false
     }
@@ -246,11 +248,11 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
     if (!catchData || !user || catchData.user_id !== user.id) return
     const isPinned = pinnedCatchIds.includes(catchData.id)
     if (!catchData.is_public && !isPinned) {
-      alert('Bitte mache den Fang zuerst öffentlich, damit er in der Vitrine angezeigt werden kann.')
+      toast('Bitte mache den Fang zuerst öffentlich, damit er in der Vitrine angezeigt werden kann.', 'info')
       return
     }
     if (!isPinned && pinnedCatchIds.length >= 6) {
-      alert('Du kannst maximal 6 Fänge anpinnen.')
+      toast('Du kannst maximal 6 Fänge anpinnen.', 'info')
       return
     }
 
@@ -259,6 +261,7 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
       : [...pinnedCatchIds, catchData.id]
 
     await persistPinned(nextPinned)
+    toast(isPinned ? 'Fang aus Vitrine entfernt' : 'Fang in Vitrine gepinnt', 'success')
   }
 
   if (loading) {

@@ -10,6 +10,7 @@ import { getSpeciesInfo, getSpeciesRarity } from '@/lib/utils/speciesInfo'
 import { ArrowLeft, MapPin, Calendar, Ruler, Scale, Trophy, Info, Lightbulb, Lock, Fish, Droplet, Waves, HelpCircle, RotateCcw, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { useToast } from '@/components/ToastProvider'
 
 export default function FishDexDetailPage({ params }: { params: { id: string } }) {
   const user = useCatchStore(state => state.user)
@@ -17,6 +18,7 @@ export default function FishDexDetailPage({ params }: { params: { id: string } }
   const [catches, setCatches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [resetting, setResetting] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (user) {
@@ -95,12 +97,12 @@ export default function FishDexDetailPage({ params }: { params: { id: string } }
 
       if (error) throw error
 
-      alert(`${entry.name} wurde aus deiner FishDex entfernt!`)
+      toast(`${entry.name} wurde aus deiner FishDex entfernt!`, 'success')
       // Redirect to FishDex
       window.location.href = '/fishdex'
     } catch (error: any) {
       console.error('Error resetting FishDex entry:', error)
-      alert('Fehler beim Zurücksetzen: ' + (error.message || 'Unbekannter Fehler'))
+      toast('Fehler beim Zurücksetzen: ' + (error.message || 'Unbekannter Fehler'), 'error')
     } finally {
       setResetting(false)
     }

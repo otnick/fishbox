@@ -30,6 +30,7 @@ import ScanAnimation from '@/components/ScanAnimation'
 import AIVerificationModal from '@/components/AIVerificationModal'
 import NoDetectionModal from '@/components/NoDetectionModal'
 import SpeciesPickerDialog from '@/components/SpeciesPickerDialog'
+import { useToast } from '@/components/ToastProvider'
 import type { Coordinates } from '@/lib/utils/geolocation'
 import type { FishSpecies, Achievement } from '@/lib/types/fishdex'
 
@@ -73,6 +74,7 @@ export default function CatchForm({
   const addCatch = useCatchStore((state) => state.addCatch)
   const user = useCatchStore((state) => state.user)
   const setAiAnalyzing = useCatchStore((state) => state.setAiAnalyzing)
+  const { toast } = useToast()
   
   const [formData, setFormData] = useState({
     species: '',
@@ -276,7 +278,7 @@ export default function CatchForm({
       }
     } catch (error) {
       console.error('Location error:', error)
-      alert('Konnte Standort nicht ermitteln')
+      toast('Konnte Standort nicht ermitteln', 'error')
     } finally {
       setGettingLocation(false)
     }
@@ -284,7 +286,7 @@ export default function CatchForm({
 
   const loadWeatherData = async () => {
     if (!coordinates) {
-      alert('Bitte zuerst Standort aktivieren')
+      toast('Bitte zuerst Standort aktivieren', 'info')
       return
     }
 
@@ -295,7 +297,7 @@ export default function CatchForm({
       setWeather(weatherData)
     } catch (error) {
       console.error('Weather error:', error)
-      alert('Konnte Wetter nicht laden')
+      toast('Konnte Wetter nicht laden', 'error')
     } finally {
       setFetchingWeather(false)
     }
@@ -305,12 +307,12 @@ export default function CatchForm({
     e.preventDefault()
     
     if (!user) {
-      alert('Bitte melde dich an')
+      toast('Bitte melde dich an', 'info')
       return
     }
 
     if (!formData.species || !formData.length) {
-      alert('Bitte Fischart und Länge angeben')
+      toast('Bitte Fischart und Länge angeben', 'info')
       return
     }
 
@@ -414,7 +416,7 @@ export default function CatchForm({
       }
     } catch (error) {
       console.error('Submit error:', error)
-      alert('Fehler beim Speichern')
+      toast('Fehler beim Speichern', 'error')
     } finally {
       setUploading(false)
     }
