@@ -51,6 +51,7 @@ export default function UserProfilePage({ params }: { params: { username: string
     uniqueSpecies: 0,
     biggestCatch: 0,
     totalWeight: 0,
+    shinyCount: 0,
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -108,12 +109,14 @@ export default function UserProfilePage({ params }: { params: { username: string
       const uniqueSpecies = new Set(catchesData.map(c => c.species)).size
       const biggestCatch = Math.max(...catchesData.map(c => c.length), 0)
       const totalWeight = catchesData.reduce((sum, c) => sum + (c.weight || 0), 0)
+      const shinyCount = catchesData.filter((c) => c.is_shiny).length
 
       setStats({
         totalCatches: catchesData.length,
         uniqueSpecies,
         biggestCatch,
         totalWeight,
+        shinyCount,
       })
 
       // Get user's FishDex (discovered species)
@@ -320,7 +323,7 @@ export default function UserProfilePage({ params }: { params: { username: string
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-ocean-light/20">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-6 border-t border-ocean-light/20">
           <div className="bg-ocean/30 rounded-lg p-4">
             <div className="flex items-center gap-2 text-ocean-light text-sm mb-1">
               <Fish className="w-4 h-4" />
@@ -344,6 +347,13 @@ export default function UserProfilePage({ params }: { params: { username: string
             <div className="text-2xl font-bold text-white">
               {(stats.totalWeight / 1000).toFixed(1)} kg
             </div>
+          </div>
+          <div className="bg-ocean/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-ocean-light text-sm mb-1">
+              <Star className="w-4 h-4 text-yellow-300" />
+              Trophäen
+            </div>
+            <div className="text-2xl font-bold text-white">{stats.shinyCount}</div>
           </div>
         </div>
       </div>
@@ -390,8 +400,11 @@ export default function UserProfilePage({ params }: { params: { username: string
                           className="absolute top-2 left-2"
                         />
                         {catchData.is_shiny && (
-                          <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg">
+                          <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
                             <Star className="w-4 h-4" />
+                            <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              Trophäe{catchData.shiny_reason ? ` • ${catchData.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -399,8 +412,11 @@ export default function UserProfilePage({ params }: { params: { username: string
                       <div className="h-40 bg-gradient-to-br from-ocean-light/20 to-ocean-dark/20 flex items-center justify-center relative">
                         <Fish className="w-10 h-10 text-ocean-light/50" />
                         {catchData.is_shiny && (
-                          <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg">
+                          <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
                             <Star className="w-4 h-4" />
+                            <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              Trophäe{catchData.shiny_reason ? ` • ${catchData.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                            </div>
                           </div>
                         )}
                       </div>

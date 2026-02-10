@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useCatchStore } from '@/lib/store'
 import { format } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Image as ImageIcon, Calendar, Fish, Filter, Download } from 'lucide-react'
+import { Image as ImageIcon, Calendar, Fish, Filter, Download, Star } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
 const PhotoLightbox = dynamic(() => import('@/components/PhotoLightbox'), { ssr: false })
@@ -18,6 +18,7 @@ interface GalleryPhoto {
   length: number
   date: string
   catchId: string
+  isShiny: boolean
 }
 
 export default function GalleryPage() {
@@ -26,6 +27,7 @@ export default function GalleryPage() {
   const [filteredPhotos, setFilteredPhotos] = useState<GalleryPhoto[]>([])
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [filterSpecies, setFilterSpecies] = useState<string>('all')
+  const [filterShiny, setFilterShiny] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'species'>('date')
   const [loading, setLoading] = useState(true)
 
@@ -37,7 +39,7 @@ export default function GalleryPage() {
   useEffect(() => {
     applyFilters()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photos, filterSpecies, sortBy])
+  }, [photos, filterSpecies, sortBy, filterShiny])
 
   const loadPhotos = () => {
     const allPhotos: GalleryPhoto[] = catches
@@ -49,6 +51,7 @@ export default function GalleryPage() {
         length: c.length,
         date: typeof c.date === 'string' ? c.date : c.date.toISOString(),
         catchId: c.id,
+        isShiny: !!c.is_shiny,
       }))
 
     setPhotos(allPhotos)
@@ -60,6 +63,10 @@ export default function GalleryPage() {
 
     if (filterSpecies !== 'all') {
       filtered = filtered.filter(p => p.species === filterSpecies)
+    }
+
+    if (filterShiny) {
+      filtered = filtered.filter(p => p.isShiny)
     }
 
     if (sortBy === 'date') {
@@ -134,7 +141,7 @@ export default function GalleryPage() {
             <Filter className="w-5 h-5 text-ocean-light" />
             <span className="text-white font-semibold">Filter</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-ocean-light text-sm mb-2">Fischart</label>
               <select
@@ -149,6 +156,19 @@ export default function GalleryPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-ocean-light text-sm mb-2">Trophäen</label>
+              <label className="flex items-center gap-2 bg-ocean-dark/50 border border-ocean-light/20 rounded-lg px-3 py-2 text-ocean-light">
+                <input
+                  type="checkbox"
+                  checked={filterShiny}
+                  onChange={(e) => setFilterShiny(e.target.checked)}
+                  className="accent-yellow-400"
+                />
+                Nur Trophäen-Fotos
+              </label>
             </div>
 
             <div>
@@ -204,6 +224,15 @@ export default function GalleryPage() {
                 sizes="100vw"
             className="object-cover group-hover:scale-110 transition-transform duration-300"
               />
+
+              {photo.isShiny && (
+                <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
+                  <Star className="w-3.5 h-3.5" />
+                  <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    Trophäe
+                  </div>
+                </div>
+              )}
               
               {/* Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">

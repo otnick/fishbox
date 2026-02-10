@@ -41,9 +41,11 @@ interface CatchFormProps {
 }
 
 const FISH_SPECIES = Array.from(new Set([...ALL_GERMAN_SPECIES, 'Andere']))
-const SHINY_LUCKY_CHANCE = 0.02
-const SHINY_PERCENTILE = 0.95
-const SHINY_MIN_HISTORY = 8
+const SHINY_DEFAULTS = {
+  chance: 0.02,
+  percentile: 0.95,
+  minHistory: 8,
+}
 
 function toDateTimeLocalValue(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
@@ -104,6 +106,7 @@ export default function CatchForm({
   const [aiVerified, setAIVerified] = useState(false)
   const [showShinyMoment, setShowShinyMoment] = useState(false)
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false)
+  const [shinySettings, setShinySettings] = useState(SHINY_DEFAULTS)
   const [dateManuallySet, setDateManuallySet] = useState(false)
   const isSubModalOpen = showAIVerification || showNoDetection || showSpeciesPicker
   const isOverlayActive = aiDetectionLoading || isSubModalOpen
@@ -160,6 +163,32 @@ export default function CatchForm({
     setAiAnalyzing(aiDetectionLoading)
     return () => setAiAnalyzing(false)
   }, [embeddedFlow, aiDetectionLoading, setAiAnalyzing])
+
+  useEffect(() => {
+    let isMounted = true
+    const loadShinySettings = async () => {
+      if (!user) return
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('shiny_lucky_chance, shiny_percentile, shiny_min_history')
+        .eq('id', 1)
+        .single()
+
+      if (!isMounted) return
+      if (!error && data) {
+        setShinySettings({
+          chance: Number(data.shiny_lucky_chance) || SHINY_DEFAULTS.chance,
+          percentile: Number(data.shiny_percentile) || SHINY_DEFAULTS.percentile,
+          minHistory: Number(data.shiny_min_history) || SHINY_DEFAULTS.minHistory,
+        })
+      }
+    }
+
+    loadShinySettings()
+    return () => {
+      isMounted = false
+    }
+  }, [user?.id])
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -476,11 +505,11 @@ export default function CatchForm({
       const { data, error } = await supabase
         .rpc('get_species_length_percentile', {
           species_name: speciesName,
-          percentile_value: SHINY_PERCENTILE,
+          percentile_value: shinySettings.percentile,
         })
 
       const row = Array.isArray(data) ? data[0] : null
-      if (!error && row?.sample_size >= SHINY_MIN_HISTORY && row?.threshold_length) {
+      if (!error && row?.sample_size >= shinySettings.minHistory && row?.threshold_length) {
         if (length >= row.threshold_length) {
           isTrophy = true
         }
@@ -493,7 +522,7 @@ export default function CatchForm({
       return { is_shiny: true, shiny_reason: 'trophy' }
     }
 
-    const isLucky = Math.random() < SHINY_LUCKY_CHANCE
+    const isLucky = Math.random() < shinySettings.chance
     if (isLucky) {
       return { is_shiny: true, shiny_reason: 'lucky' }
     }
@@ -618,7 +647,7 @@ export default function CatchForm({
           <div className="bg-black/70 text-yellow-200 px-6 py-4 rounded-xl shadow-xl shiny-badge animate-shinyBurst">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-300 animate-pulse" />
-              Shiny-Fang entdeckt!
+              Trophäen-Fang entdeckt!
             </div>
           </div>
         </div>

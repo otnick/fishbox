@@ -17,3 +17,6 @@ AS $$
     FROM public.catches
     WHERE species ILIKE species_name;
 $$;
+
+REVOKE ALL ON FUNCTION public.get_species_length_percentile(TEXT, DOUBLE PRECISION) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_species_length_percentile(TEXT, DOUBLE PRECISION) TO authenticated;

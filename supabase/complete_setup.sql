@@ -93,6 +93,19 @@ CREATE TABLE public.activities (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- STEP 7b: Create admin settings table
+CREATE TABLE public.admin_settings (
+    id SMALLINT PRIMARY KEY DEFAULT 1,
+    shiny_lucky_chance NUMERIC NOT NULL DEFAULT 0.02,
+    shiny_percentile NUMERIC NOT NULL DEFAULT 0.95,
+    shiny_min_history INTEGER NOT NULL DEFAULT 8,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+INSERT INTO public.admin_settings (id)
+VALUES (1)
+ON CONFLICT (id) DO NOTHING;
+
 -- STEP 8: Enable RLS on all tables
 ALTER TABLE public.catches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -100,6 +113,7 @@ ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.catch_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.catch_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
 
 -- STEP 9: RLS Policies for catches
 CREATE POLICY "Users can view own catches"
@@ -200,6 +214,103 @@ CREATE POLICY "Users can view public activities"
 CREATE POLICY "Users can create activities"
     ON public.activities FOR INSERT
     WITH CHECK (auth.uid() = user_id);
+
+-- STEP 15: RLS Policies for admin settings
+CREATE POLICY "Authenticated can view admin settings"
+    ON public.admin_settings FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Admins can update admin settings"
+    ON public.admin_settings FOR UPDATE
+    USING ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true');
+
+CREATE POLICY "Admins can insert admin settings"
+    ON public.admin_settings FOR INSERT
+    WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true');
+
+-- STEP 16: updated_at trigger for admin_settings
+DROP TRIGGER IF EXISTS set_admin_settings_updated_at ON public.admin_settings;
+CREATE TRIGGER set_admin_settings_updated_at
+    BEFORE UPDATE ON public.admin_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+-- STEP 17: Admin helpers
+CREATE OR REPLACE FUNCTION public.remove_pinned_catch(catch_id UUID)
+RETURNS VOID
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  UPDATE public.profiles
+  SET pinned_catch_ids = array_remove(pinned_catch_ids, catch_id)
+  WHERE pinned_catch_ids @> ARRAY[catch_id];
+$$;
+
+REVOKE ALL ON FUNCTION public.remove_pinned_catch(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.remove_pinned_catch(UUID) TO service_role;
+
+-- STEP 18: Shiny rank helper
+CREATE OR REPLACE FUNCTION public.get_species_length_rank(
+    species_name TEXT,
+    length_value NUMERIC
+)
+RETURNS TABLE (
+    total_count BIGINT,
+    above_or_equal_count BIGINT
+)
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        COUNT(*)::BIGINT AS total_count,
+        COUNT(*) FILTER (WHERE length >= length_value)::BIGINT AS above_or_equal_count
+    FROM public.catches
+    WHERE species ILIKE species_name;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_species_length_rank(TEXT, NUMERIC) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_species_length_rank(TEXT, NUMERIC) TO authenticated;
+
+-- STEP 19: Trophy recalculation helper
+CREATE OR REPLACE FUNCTION public.recalculate_trophy_shinies()
+RETURNS INTEGER
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH settings AS (
+    SELECT shiny_percentile, shiny_min_history
+    FROM public.admin_settings
+    WHERE id = 1
+  ),
+  stats AS (
+    SELECT
+      c.species,
+      percentile_cont(s.shiny_percentile) WITHIN GROUP (ORDER BY c.length) AS threshold,
+      COUNT(*)::BIGINT AS sample_size
+    FROM public.catches c
+    CROSS JOIN settings s
+    GROUP BY c.species, s.shiny_percentile
+  ),
+  updated AS (
+    UPDATE public.catches c
+    SET is_shiny = true,
+        shiny_reason = 'trophy'
+    FROM stats st
+    CROSS JOIN settings s
+    WHERE c.species = st.species
+      AND st.sample_size >= s.shiny_min_history
+      AND c.length >= st.threshold
+      AND (c.shiny_reason IS DISTINCT FROM 'lucky')
+    RETURNING c.id
+  )
+  SELECT COUNT(*)::INTEGER FROM updated;
+$$;
+
+REVOKE ALL ON FUNCTION public.recalculate_trophy_shinies() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.recalculate_trophy_shinies() TO service_role;
 
 -- STEP 15: Create indexes for performance
 CREATE INDEX idx_catches_user_id ON public.catches(user_id);

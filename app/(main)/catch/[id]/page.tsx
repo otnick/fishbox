@@ -69,6 +69,7 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
   const [catchData, setCatchData] = useState<CatchDetail | null>(null)
   const [pinnedCatchIds, setPinnedCatchIds] = useState<string[]>([])
   const [pinSaving, setPinSaving] = useState(false)
+  const [shinyRank, setShinyRank] = useState<{ total: number; above: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const user = useCatchStore((state) => state.user)
@@ -133,6 +134,21 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
 
       if (catchRow.user_id === user.id) {
         setPinnedCatchIds((profile?.pinned_catch_ids || []).slice(0, 6))
+      }
+
+      if (catchRow.is_shiny) {
+        const { data: rankData } = await supabase
+          .rpc('get_species_length_rank', {
+            species_name: catchRow.species,
+            length_value: catchRow.length,
+          })
+        const row = Array.isArray(rankData) ? rankData[0] : null
+        if (row?.total_count) {
+          setShinyRank({
+            total: Number(row.total_count),
+            above: Number(row.above_or_equal_count || 0),
+          })
+        }
       }
     } catch (error) {
       console.error('Error fetching catch:', error)
@@ -328,11 +344,24 @@ export default function CatchDetailPage({ params }: { params: { id: string } }) 
               {catchData.species}
             </h1>
             {catchData.is_shiny && (
-              <div className="inline-flex items-center gap-2 text-sm text-yellow-300 mb-3">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                Shiny-Fang
-                {catchData.shiny_reason === 'trophy' && <span className="text-yellow-200/80">(Trophy)</span>}
-                {catchData.shiny_reason === 'lucky' && <span className="text-yellow-200/80">(Lucky)</span>}
+              <div className="space-y-1 mb-3">
+                <div className="inline-flex items-center gap-2 text-sm text-yellow-300">
+                  <span className="relative group inline-flex items-center gap-2">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    Trophäe-Fang
+                    {catchData.shiny_reason === 'trophy' && <span className="text-yellow-200/80">(Rekord)</span>}
+                    {catchData.shiny_reason === 'lucky' && <span className="text-yellow-200/80">(Glück)</span>}
+                    <span className="absolute left-0 -bottom-8 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      Trophäe
+                    </span>
+                  </span>
+                </div>
+                {shinyRank && shinyRank.total > 0 && (
+                  <div className="text-xs text-yellow-200/80">
+                    Aktueller Rang: Platz {shinyRank.above} von {shinyRank.total} • Top{' '}
+                    {Math.max(1, Math.round((shinyRank.above / shinyRank.total) * 100))}%
+                  </div>
+                )}
               </div>
             )}
             <div className="flex items-center gap-2 mb-3">

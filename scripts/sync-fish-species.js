@@ -12,11 +12,11 @@ const tableName = tableArg ? tableArg.split('=')[1] : 'fish_species'
 
 const DEFAULT_REGION = 'weltweit'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://yooyqmhvjrmegraoopck.supabase.co"
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const SERVICE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.SUPABASE_SERVICE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlvb3lxbWh2anJtZWdyYW9vcGNrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTUwNjIxMywiZXhwIjoyMDg1MDgyMjEzfQ.xik5x_gj4uUmOuyC1_6rgJnz0RUfriAS3V6ufhN9VFA"
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Missing SUPABASE env vars.')

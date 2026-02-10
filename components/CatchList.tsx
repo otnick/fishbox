@@ -25,6 +25,7 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
   const [expandedMapId, setExpandedMapId] = useState<string | null>(null)
   const [pinnedCatchIds, setPinnedCatchIds] = useState<string[]>([])
   const [pinSaving, setPinSaving] = useState(false)
+  const [showTrophiesOnly, setShowTrophiesOnly] = useState(false)
 
   useEffect(() => {
     const loadPinned = async () => {
@@ -133,15 +134,31 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
     await persistPinned(nextPinned)
   }
 
+  const visibleCatches = showTrophiesOnly
+    ? catches.filter((c) => c.is_shiny)
+    : catches
+
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold text-white mb-4">
-        Meine Fänge ({catches.length})
+        Meine Fänge ({visibleCatches.length})
       </h2>
+
+      <div className="bg-ocean/30 backdrop-blur-sm rounded-lg p-4">
+        <label className="flex items-center gap-2 text-ocean-light">
+          <input
+            type="checkbox"
+            checked={showTrophiesOnly}
+            onChange={(e) => setShowTrophiesOnly(e.target.checked)}
+            className="accent-yellow-400"
+          />
+          Nur Trophäen anzeigen
+        </label>
+      </div>
 
       {/* Grid Layout - Like Social Page */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {catches.map((catchItem) => (
+        {visibleCatches.map((catchItem) => (
           <div
             key={catchItem.id}
             className={`bg-ocean/30 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-xl transition-all duration-300 ${
@@ -169,8 +186,11 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
                     />
 
                     {catchItem.is_shiny && (
-                      <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg">
+                      <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
                         <Star className="w-4 h-4" />
+                        <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          Trophäe{catchItem.shiny_reason ? ` • ${catchItem.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                        </div>
                       </div>
                     )}
                     
@@ -183,8 +203,11 @@ export default function CatchList({ catches: propCatches }: CatchListProps = {})
                   <div className="h-full flex items-center justify-center relative">
                     <Fish className="w-14 h-14 opacity-50 text-ocean-light" />
                     {catchItem.is_shiny && (
-                      <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg">
+                      <div className="absolute top-2 right-2 shiny-badge text-black rounded-full p-2 shadow-lg group">
                         <Star className="w-4 h-4" />
+                        <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          Trophäe{catchItem.shiny_reason ? ` • ${catchItem.shiny_reason === 'trophy' ? 'Rekord' : 'Glück'}` : ''}
+                        </div>
                       </div>
                     )}
                   </div>
