@@ -2,6 +2,7 @@
 
 import { createAvatar } from '@dicebear/core'
 import { identicon } from '@dicebear/collection'
+import Image from 'next/image'
 
 interface AvatarProps {
   seed: string
@@ -14,7 +15,7 @@ interface AvatarProps {
 export default function Avatar({ seed, src, size = 48, className = '', alt = 'Avatar' }: AvatarProps) {
   if (src) {
     return (
-      <img
+      <Image
         src={src}
         alt={alt}
         width={size}
@@ -32,11 +33,12 @@ export default function Avatar({ seed, src, size = 48, className = '', alt = 'Av
   const dataUri = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 
   return (
-    <img
+    <Image
       src={dataUri}
       alt={alt}
       width={size}
       height={size}
+      unoptimized
       className={`rounded-full ${className}`}
     />
   )

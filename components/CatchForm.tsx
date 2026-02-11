@@ -41,6 +41,12 @@ interface CatchFormProps {
   initialLocation?: string
 }
 
+type ShinyReason = 'trophy' | 'lucky' | 'legendary'
+type ShinyStatus = {
+  is_shiny: boolean
+  shiny_reason: ShinyReason | null
+}
+
 const FISH_SPECIES = Array.from(new Set([...ALL_GERMAN_SPECIES, 'Andere']))
 const SHINY_DEFAULTS = {
   chance: 0.02,
@@ -106,7 +112,7 @@ export default function CatchForm({
   const [aiDetectionLoading, setAIDetectionLoading] = useState(false)
   const [manualMode, setManualMode] = useState(false)
   const [aiVerified, setAIVerified] = useState(false)
-  const [shinyMomentReason, setShinyMomentReason] = useState<null | 'trophy' | 'lucky' | 'legendary'>(null)
+  const [shinyMomentReason, setShinyMomentReason] = useState<ShinyReason | null>(null)
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false)
   const [shinySettings, setShinySettings] = useState(SHINY_DEFAULTS)
   const [dateManuallySet, setDateManuallySet] = useState(false)
@@ -513,7 +519,7 @@ export default function CatchForm({
     }
   }
 
-  const determineShinyStatus = async (speciesName: string, length: number) => {
+  const determineShinyStatus = async (speciesName: string, length: number): Promise<ShinyStatus> => {
     if (!user) return { is_shiny: false, shiny_reason: null }
 
     try {
