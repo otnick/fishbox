@@ -47,11 +47,14 @@ export default function GalleryPage() {
   }, [photos, filterSpecies, sortBy, filterShiny])
 
   const loadPhotos = () => {
-    const allPhotos: GalleryPhoto[] = catches
-      .filter(c => c.photo)
-      .map(c => ({
-        id: c.id,
-        url: c.photo!,
+    const allPhotos: GalleryPhoto[] = catches.flatMap((c) => {
+      const photoUrls = (c.photos && c.photos.length > 0)
+        ? c.photos
+        : (c.photo ? [c.photo] : [])
+
+      return photoUrls.map((url, index) => ({
+        id: `${c.id}-${index}`,
+        url,
         species: c.species,
         length: c.length,
         date: typeof c.date === 'string' ? c.date : c.date.toISOString(),
@@ -59,6 +62,7 @@ export default function GalleryPage() {
         isShiny: !!c.is_shiny,
         shinyReason: c.shiny_reason || null,
       }))
+    })
 
     setPhotos(allPhotos)
     setLoading(false)

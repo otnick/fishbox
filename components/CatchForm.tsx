@@ -53,6 +53,7 @@ const SHINY_DEFAULTS = {
   percentile: 0.95,
   minHistory: 8,
 }
+const MAX_PHOTOS = 6
 
 function toDateTimeLocalValue(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
@@ -93,8 +94,8 @@ export default function CatchForm({
     isPublic: false, // Default to private
   })
 
-  const [photo, setPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null)
   const [gettingLocation, setGettingLocation] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -118,11 +119,83 @@ export default function CatchForm({
   const [dateManuallySet, setDateManuallySet] = useState(false)
   const isSubModalOpen = showAIVerification || showNoDetection || showSpeciesPicker
   const isOverlayActive = aiDetectionLoading || isSubModalOpen
+  const primaryPhoto = photos[0] || null
+  const primaryPhotoPreview = photoPreviews[0] || null
 
   const closeSubModals = () => {
     setShowAIVerification(false)
     setShowNoDetection(false)
     setShowSpeciesPicker(false)
+  }
+
+  const clearPhotoSelection = () => {
+    setPhotos([])
+    setPhotoPreviews([])
+    setManualMode(false)
+    setAIVerified(false)
+    setAIDetectionResults([])
+    closeSubModals()
+  }
+
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error('Foto konnte nicht gelesen werden'))
+      reader.readAsDataURL(file)
+    })
+
+  const applyPrimaryPhotoMetadata = async (file: File) => {
+    const metadata = await extractExifMetadataFromImage(file)
+
+    if (metadata.capturedAt && !dateManuallySet) {
+      setFormData((prev) => ({ ...prev, date: toDateTimeLocalValue(metadata.capturedAt as Date) }))
+    }
+
+    if (metadata.coordinates) {
+      setCoordinates(metadata.coordinates)
+
+      const targetDate = metadata.capturedAt || (formData.date ? new Date(formData.date) : new Date())
+      const [locationName, weatherData] = await Promise.all([
+        getLocationName(metadata.coordinates),
+        getWeatherData(metadata.coordinates, targetDate),
+      ])
+
+      if (locationName) {
+        setFormData((prev) => ({ ...prev, location: locationName }))
+      }
+      if (weatherData) {
+        setWeather(weatherData)
+      }
+    }
+  }
+
+  const runAiDetectionForPrimary = async (file: File) => {
+    console.log('Starting AI detection...')
+    closeSubModals()
+    setAIDetectionResults([])
+    setShowAIVerification(true)
+    setAIDetectionLoading(true)
+    try {
+      const results = await detectFishSpecies(file)
+      console.log('AI Results:', results)
+
+      if (results.detections > 0 && results.results.length > 0) {
+        setAIDetectionResults(results.results)
+        setShowAIVerification(true)
+        console.log('Fish detected. Showing verification modal')
+      } else {
+        console.log('No fish detected. Showing NoDetectionModal')
+        setShowAIVerification(false)
+        setShowNoDetection(true)
+      }
+    } catch (error) {
+      console.error('AI detection failed:', error)
+      setShowAIVerification(false)
+      setShowNoDetection(true)
+    } finally {
+      setAIDetectionLoading(false)
+    }
   }
 
   // Debug: Watch newDiscovery changes
@@ -213,72 +286,54 @@ export default function CatchForm({
   }, [user])
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
+    const selectedFiles = Array.from(e.target.files || [])
+    if (selectedFiles.length > 0) {
       if (embeddedFlow) {
         const sheet = document.querySelector<HTMLElement>('[data-catch-modal-sheet="true"]')
         sheet?.scrollTo({ top: 0, behavior: 'auto' })
       }
 
-      setPhoto(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
+      const availableSlots = Math.max(0, MAX_PHOTOS - photos.length)
+      if (availableSlots <= 0) {
+        toast(`Maximal ${MAX_PHOTOS} Fotos pro Fang`, 'info')
+        return
       }
-      reader.readAsDataURL(file)
 
-      // Try reading GPS EXIF metadata from image in parallel.
-      void (async () => {
-        const metadata = await extractExifMetadataFromImage(file)
+      const filesToAdd = selectedFiles.slice(0, availableSlots)
+      const previewsToAdd = await Promise.all(filesToAdd.map(readFileAsDataUrl))
 
-        if (metadata.capturedAt && !dateManuallySet) {
-          setFormData((prev) => ({ ...prev, date: toDateTimeLocalValue(metadata.capturedAt as Date) }))
-        }
+      const hadNoPrimary = photos.length === 0
+      setPhotos((prev) => [...prev, ...filesToAdd])
+      setPhotoPreviews((prev) => [...prev, ...previewsToAdd])
 
-        if (metadata.coordinates) {
-          setCoordinates(metadata.coordinates)
+      if (hadNoPrimary && filesToAdd[0]) {
+        void applyPrimaryPhotoMetadata(filesToAdd[0])
+        void runAiDetectionForPrimary(filesToAdd[0])
+      }
 
-          const targetDate = metadata.capturedAt || (formData.date ? new Date(formData.date) : new Date())
-          const [locationName, weatherData] = await Promise.all([
-            getLocationName(metadata.coordinates),
-            getWeatherData(metadata.coordinates, targetDate),
-          ])
+      e.target.value = ''
+    }
+  }
 
-          if (locationName) {
-            setFormData((prev) => ({ ...prev, location: locationName }))
-          }
-          if (weatherData) {
-            setWeather(weatherData)
-          }
-        }
-      })()
+  const removePhotoAt = (index: number) => {
+    const nextPhotos = photos.filter((_, i) => i !== index)
+    const nextPreviews = photoPreviews.filter((_, i) => i !== index)
+    const primaryChanged = index === 0
 
-      // Run AI detection
-      console.log('Starting AI detection...')
+    setPhotos(nextPhotos)
+    setPhotoPreviews(nextPreviews)
+    setAIVerified(false)
+    setAIDetectionResults([])
+    setManualMode(false)
+
+    if (nextPhotos.length === 0) {
       closeSubModals()
-      setAIDetectionResults([])
-      setShowAIVerification(true)
-      setAIDetectionLoading(true)
-      try {
-        const results = await detectFishSpecies(file)
-        console.log('AI Results:', results)
-        
-        if (results.detections > 0 && results.results.length > 0) {
-          setAIDetectionResults(results.results)
-          setShowAIVerification(true)
-          console.log('Fish detected. Showing verification modal')
-        } else {
-          console.log('No fish detected. Showing NoDetectionModal')
-          setShowAIVerification(false)
-          setShowNoDetection(true)
-        }
-      } catch (error) {
-        console.error('AI detection failed:', error)
-        setShowAIVerification(false)
-        setShowNoDetection(true)
-      } finally {
-        setAIDetectionLoading(false)
-      }
+      return
+    }
+
+    if (primaryChanged) {
+      void applyPrimaryPhotoMetadata(nextPhotos[0])
+      void runAiDetectionForPrimary(nextPhotos[0])
     }
   }
 
@@ -341,12 +396,16 @@ export default function CatchForm({
     try {
       let photoUrl: string | undefined = undefined
 
-      if (photo) {
-        const compressed = await compressImage(photo)
-        const url = await uploadPhoto(compressed, user.id)
-        if (url) {
-          photoUrl = url
+      const uploadedPhotoUrls: string[] = []
+      if (photos.length > 0) {
+        for (const photo of photos) {
+          const compressed = await compressImage(photo)
+          const url = await uploadPhoto(compressed, user.id)
+          if (url) {
+            uploadedPhotoUrls.push(url)
+          }
         }
+        photoUrl = uploadedPhotoUrls[0]
       }
 
       // Determine verification status
@@ -393,6 +452,7 @@ export default function CatchForm({
         notes: formData.notes || undefined,
         date: new Date(formData.date).toISOString(),
         photo: photoUrl,
+        photos: uploadedPhotoUrls.length > 0 ? uploadedPhotoUrls : undefined,
         coordinates: coordinates || undefined,
         weather: weather || undefined,
         is_public: formData.isPublic, // Add public status
@@ -422,8 +482,8 @@ export default function CatchForm({
         isPublic: false, // Reset to private
       })
       setDateManuallySet(false)
-      setPhoto(null)
-      setPhotoPreview(null)
+      setPhotos([])
+      setPhotoPreviews([])
       setCoordinates(null)
       setWeather(null)
       setManualMode(false)
@@ -571,10 +631,10 @@ export default function CatchForm({
   return (
     <>
       {/* AI Verification Modal */}
-      {showAIVerification && photoPreview && (
+      {showAIVerification && primaryPhotoPreview && (
         <AIVerificationModal
           embedded={embeddedFlow}
-          photoPreview={photoPreview}
+          photoPreview={primaryPhotoPreview}
           detectionResults={aiDetectionResults}
           detectionLoading={aiDetectionLoading}
           onConfirm={(species) => {
@@ -586,19 +646,14 @@ export default function CatchForm({
           }}
           onReject={() => {
             console.log('User rejected catch. Discarding')
-            closeSubModals()
-            setPhoto(null)
-            setPhotoPreview(null)
-            setManualMode(false)
-            setAIVerified(false)
-            setAIDetectionResults([])
+            clearPhotoSelection()
           }}
           onRetry={async () => {
             console.log('Retrying AI detection...')
-            if (photo) {
+            if (primaryPhoto) {
               setAIDetectionLoading(true)
               try {
-                const results = await detectFishSpecies(photo)
+                const results = await detectFishSpecies(primaryPhoto)
                 setAIDetectionResults(results.results || [])
                 if (results.detections === 0) {
                   closeSubModals()
@@ -623,17 +678,17 @@ export default function CatchForm({
       )}
 
       {/* No Detection Modal */}
-      {showNoDetection && photoPreview && (
+      {showNoDetection && primaryPhotoPreview && (
         <NoDetectionModal
           embedded={embeddedFlow}
-          photoPreview={photoPreview}
+          photoPreview={primaryPhotoPreview}
           onRetry={async () => {
             console.log('Retrying AI detection from NoDetectionModal...')
-            if (photo) {
+            if (primaryPhoto) {
               closeSubModals()
               setAIDetectionLoading(true)
               try {
-                const results = await detectFishSpecies(photo)
+                const results = await detectFishSpecies(primaryPhoto)
                 if (results.detections > 0 && results.results.length > 0) {
                   closeSubModals()
                   setAIDetectionResults(results.results)
@@ -659,11 +714,7 @@ export default function CatchForm({
           }}
           onReject={() => {
             console.log('User rejected from NoDetectionModal. Discarding')
-            closeSubModals()
-            setPhoto(null)
-            setPhotoPreview(null)
-            setManualMode(false)
-            setAIVerified(false)
+            clearPhotoSelection()
           }}
         />
       )}
@@ -721,17 +772,20 @@ export default function CatchForm({
       {/* Photo Upload */}
       <div>
         <label className="block text-ocean-light text-sm mb-2">
-          Foto
+          Fotos ({photoPreviews.length}/{MAX_PHOTOS})
         </label>
-        {photoPreview ? (
+        {primaryPhotoPreview ? (
           <div className="relative w-full h-48 rounded-lg overflow-hidden mb-2">
             <Image
-              src={photoPreview}
+              src={primaryPhotoPreview}
               alt="Preview"
               fill
               sizes="(max-width: 640px) 100vw, 640px"
               className="object-cover"
             />
+            <div className="absolute bottom-2 left-2 bg-ocean-deeper/80 text-white text-xs px-2 py-1 rounded">
+              Primärbild (KI)
+            </div>
             
             {/* Status Badge - Top Left (Icon only with tooltip) */}
             {aiDetectionLoading && (
@@ -779,16 +833,10 @@ export default function CatchForm({
             
             <button
               type="button"
-              onClick={() => {
-                setPhoto(null)
-                setPhotoPreview(null)
-                setManualMode(false)
-                setAIVerified(false)
-                setAIDetectionResults([])
-              }}
+              onClick={clearPhotoSelection}
               className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-lg text-sm"
             >
-              Entfernen
+              Alle entfernen
             </button>
           </div>
         ) : (
@@ -802,14 +850,58 @@ export default function CatchForm({
             <input
               type="file"
               accept="image/*"
+              multiple
               onChange={handlePhotoChange}
               className="hidden"
             />
           </label>
         )}
+
+        {photoPreviews.length > 0 && (
+          <>
+            <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {photoPreviews.map((preview, index) => (
+                <div key={`${preview}-${index}`} className="relative aspect-square rounded-lg overflow-hidden bg-ocean-dark">
+                  <Image
+                    src={preview}
+                    alt={`Foto ${index + 1}`}
+                    fill
+                    sizes="120px"
+                    className="object-cover"
+                  />
+                  {index === 0 && (
+                    <div className="absolute bottom-1 left-1 bg-ocean/80 text-white text-[10px] px-1.5 py-0.5 rounded">
+                      KI
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePhotoAt(index)}
+                    className="absolute top-1 right-1 bg-black/70 hover:bg-black/90 text-white text-xs w-6 h-6 rounded-full"
+                    aria-label={`Foto ${index + 1} entfernen`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            {photoPreviews.length < MAX_PHOTOS && (
+              <label className="inline-flex mt-3 items-center justify-center px-3 py-2 rounded-lg bg-ocean-dark hover:bg-ocean text-white text-sm cursor-pointer transition-colors">
+                Weitere Fotos hinzufügen
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </>
+        )}
         
         {/* Verification Status Info */}
-        {photoPreview && (
+        {primaryPhotoPreview && (
           <div className="mt-2 text-sm text-ocean-light">
             {aiDetectionLoading && (
               <p className="inline-flex items-center gap-1">

@@ -14,6 +14,7 @@ export interface Catch {
   bait?: string
   notes?: string
   photo?: string // URL or base64
+  photos?: string[]
   coordinates?: {
     lat: number
     lng: number
@@ -96,19 +97,27 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
     
     const { data, error } = await supabase
       .from('catches')
-      .select('*')
+      .select('*, catch_photos(photo_url, order_index)')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
 
     if (error) {
       console.error('Error fetching catches:', error)
     } else {
-      // Convert date strings to Date objects and map photo_url to photo
-      const catches = data.map(c => ({
+      const catches = data.map((c: any) => {
+        const orderedPhotos = (c.catch_photos || [])
+          .slice()
+          .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0))
+          .map((p: any) => p.photo_url)
+          .filter(Boolean)
+
+        return {
         ...c,
         date: new Date(c.date),
-        photo: c.photo_url, // Map photo_url to photo for frontend
-      }))
+        photo: c.photo_url || orderedPhotos[0] || undefined,
+        photos: orderedPhotos,
+      }
+      })
       set({ catches })
     }
     
@@ -119,15 +128,19 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
     const { user } = get()
     if (!user) return
 
+    const photoUrls = (catchData.photos || []).filter(Boolean)
+    const primaryPhotoUrl = catchData.photo || photoUrls[0]
+
     const newCatch = {
       ...catchData,
       date: catchData.date instanceof Date ? catchData.date.toISOString() : catchData.date,
       user_id: user.id,
-      photo_url: catchData.photo, // Map photo to photo_url for database
+      photo_url: primaryPhotoUrl, // Primary photo for fast access/backward compatibility
     }
 
-    // Remove the photo field as it's now photo_url
+    // Remove frontend-only photo fields
     delete (newCatch as any).photo
+    delete (newCatch as any).photos
 
     const { data, error } = await supabase
       .from('catches')
@@ -139,11 +152,27 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
       console.error('Error adding catch:', error)
       emitToast('Fehler beim Speichern: ' + error.message, 'error')
     } else {
-      // Map photo_url back to photo for frontend
+      if (photoUrls.length > 0) {
+        const photoRows = photoUrls.map((photoUrl, index) => ({
+          catch_id: data.id,
+          photo_url: photoUrl,
+          order_index: index,
+        }))
+        const { error: photosError } = await supabase
+          .from('catch_photos')
+          .insert(photoRows)
+
+        if (photosError) {
+          console.error('Error saving catch photos:', photosError)
+          emitToast('Fang gespeichert, aber zusätzliche Fotos konnten nicht gespeichert werden.', 'error')
+        }
+      }
+
       const catchWithPhoto = {
         ...data,
         date: new Date(data.date),
         photo: data.photo_url,
+        photos: photoUrls.length > 0 ? photoUrls : (data.photo_url ? [data.photo_url] : []),
       }
       set((state) => ({
         catches: [catchWithPhoto, ...state.catches],
@@ -176,6 +205,7 @@ export const useCatchStore = create<CatchStore>((set, get) => ({
 
     // Remove photo field for database
     delete (updateData as any).photo
+    delete (updateData as any).photos
 
     const { error } = await supabase
       .from('catches')

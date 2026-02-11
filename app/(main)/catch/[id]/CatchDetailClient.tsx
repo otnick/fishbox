@@ -40,6 +40,7 @@ interface CatchDetail {
   bait?: string
   notes?: string
   photo_url?: string
+  photos?: string[]
   coordinates?: { lat: number; lng: number }
   weather?: any
   user_id: string
@@ -68,6 +69,7 @@ function getWeatherSourceClass(source?: 'historical' | 'forecast' | 'current'): 
 
 export default function CatchDetailClient({ id }: { id: string }) {
   const [catchData, setCatchData] = useState<CatchDetail | null>(null)
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0)
   const [pinnedCatchIds, setPinnedCatchIds] = useState<string[]>([])
   const [pinSaving, setPinSaving] = useState(false)
   const [shinyRank, setShinyRank] = useState<{ total: number; above: number } | null>(null)
@@ -120,13 +122,25 @@ export default function CatchDetailClient({ id }: { id: string }) {
         .select('*', { count: 'exact', head: true })
         .eq('catch_id', id)
 
+      const { data: catchPhotos } = await supabase
+        .from('catch_photos')
+        .select('photo_url, order_index')
+        .eq('catch_id', id)
+        .order('order_index', { ascending: true })
+
+      const orderedPhotos = (catchPhotos || [])
+        .map((p) => p.photo_url)
+        .filter(Boolean) as string[]
+
       setCatchData({
         ...catchRow,
+        photos: orderedPhotos,
         username: profile?.username || 'angler',
         likes_count: likesCount || 0,
         comments_count: commentsCount || 0,
         user_has_liked: !!userLike,
       })
+      setSelectedPhotoIndex(0)
 
       if (catchRow.user_id === user.id) {
         setPinnedCatchIds((profile?.pinned_catch_ids || []).slice(0, 6))
@@ -307,19 +321,43 @@ export default function CatchDetailClient({ id }: { id: string }) {
         {/* Left Column - Photo & Map */}
         <div className="lg:col-span-2 space-y-4">
           {/* Photo */}
-          {catchData.photo_url && (
+          {(catchData.photos && catchData.photos.length > 0) || catchData.photo_url ? (
             <div className="bg-ocean/30 backdrop-blur-sm rounded-xl p-4">
               <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-ocean-dark">
                 <Image
-                  src={catchData.photo_url}
+                  src={catchData.photos?.[selectedPhotoIndex] || catchData.photo_url || ''}
                   alt={catchData.species}
                   fill
                   sizes="100vw"
             className="object-cover"
                 />
               </div>
+              {catchData.photos && catchData.photos.length > 1 && (
+                <div className="mt-3 grid grid-cols-5 gap-2">
+                  {catchData.photos.map((photoUrl, index) => (
+                    <button
+                      key={`${photoUrl}-${index}`}
+                      type="button"
+                      onClick={() => setSelectedPhotoIndex(index)}
+                      className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
+                        selectedPhotoIndex === index
+                          ? 'border-ocean-light'
+                          : 'border-transparent hover:border-ocean-light/50'
+                      }`}
+                    >
+                      <Image
+                        src={photoUrl}
+                        alt={`${catchData.species} Foto ${index + 1}`}
+                        fill
+                        sizes="120px"
+                        className="object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
 
           {/* Map */}
           {catchData.coordinates && (
